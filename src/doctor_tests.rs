@@ -14,7 +14,7 @@ fn doctor_flags_a_repo_with_no_crucible_dir() {
 }
 
 #[test]
-fn doctor_on_a_fresh_scaffold_parses_but_flags_the_todo_gate_runner() {
+fn doctor_on_a_fresh_scaffold_parses_and_finds_gate_runner() {
     let dir = tempfile::tempdir().unwrap();
     scaffold(dir.path(), false).unwrap();
     let checks = doctor(dir.path());
@@ -23,12 +23,17 @@ fn doctor_on_a_fresh_scaffold_parses_but_flags_the_todo_gate_runner() {
             .iter()
             .any(|c| c.status == Status::Pass && c.msg.contains("adapter.json parses"))
     );
-    // A fresh scaffold points at a TODO gate runner, so it must not read as healthy.
-    assert!(any_fail(&checks), "a half-scaffolded repo is not healthy");
     assert!(
         checks
             .iter()
-            .any(|c| c.msg.contains("gate runner not found"))
+            .any(|c| c.status == Status::Pass && c.msg.contains("gate runner resolves")),
+        "fresh init must wire a real gate runner: {:?}",
+        checks.iter().map(|c| &c.msg).collect::<Vec<_>>()
+    );
+    // Unapproved config/gates still fail the honesty check until `crucible approve`.
+    assert!(
+        any_fail(&checks),
+        "unapproved scaffold must not read fully healthy"
     );
 }
 

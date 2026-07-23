@@ -29,16 +29,49 @@ fn is_commented_line(line: &str, match_at: usize) -> bool {
     before.contains('#') || before.contains("//")
 }
 
+/// True when the shell statement that contains `match_at` is an `echo`/`printf`
+/// of text, not an invocation of that text. `echo x && crucible check` is still
+/// active; `echo crucible check` is not.
+fn match_is_in_echo_or_printf(line: &str, match_at: usize) -> bool {
+    let at = match_at.min(line.len());
+    let before = &line[..at];
+    // Start of the simple statement containing the match (after ; && ||).
+    let mut start = 0usize;
+    if let Some(i) = before.rfind(';') {
+        start = start.max(i + 1);
+    }
+    if let Some(i) = before.rfind("&&") {
+        start = start.max(i + 2);
+    }
+    if let Some(i) = before.rfind("||") {
+        start = start.max(i + 2);
+    }
+    if let Some(i) = before.rfind('|') {
+        // bare pipe (not part of ||)
+        if !before[i.saturating_sub(1)..].starts_with("||") {
+            start = start.max(i + 1);
+        }
+    }
+    let stmt = line[start..].trim_start().to_ascii_lowercase();
+    stmt.starts_with("echo ")
+        || stmt.starts_with("echo\t")
+        || stmt == "echo"
+        || stmt.starts_with("printf ")
+        || stmt.starts_with("printf\t")
+}
+
 /// Same-line runtime neutering: the invocation is present as text but never
 /// affects exit status. Shared by pre-push and gate-runner wiring.
 pub fn line_is_neutered(line: &str, match_at: usize) -> bool {
+    if match_is_in_echo_or_printf(line, match_at) {
+        return true;
+    }
     let lower = line.to_ascii_lowercase();
     let at = match_at.min(lower.len());
     let before = &lower[..at];
     let after = &lower[at..];
     // Disabled by false condition before the call.
-    if before.contains("if false") || before.contains("false &&") || before.contains("false;")
-    {
+    if before.contains("if false") || before.contains("false &&") || before.contains("false;") {
         return true;
     }
     // Exit status swallowed after the call.

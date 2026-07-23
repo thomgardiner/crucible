@@ -38,6 +38,8 @@ Crucible fails closed on those cases. The claims are exercised on every
 
 ## Install
 
+**CLI (required):**
+
 ```sh
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.sh | sh
@@ -48,37 +50,42 @@ powershell -ExecutionPolicy ByPass -c \
   "irm https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.ps1 | iex"
 ```
 
-Or from a checkout: `cargo install --locked --path .`
+```sh
+# From a source checkout
+cargo install --locked --path .
+crucible --version
+```
+
+**Optional:** install this repo as a Claude Code / Codex plugin for the skill and
+Stop nudge (`after-install.md` after install). The CLI is still required on PATH.
 
 ## Setup (one repo)
 
 ```sh
-crucible init
-# Fill TODOs in .crucible/: gate runner, highRiskUnits, build/boot/drive, mutation cmd
-crucible approve __config__ --by <reviewer>
-crucible approve <gate> --by <reviewer>
-git config core.hooksPath .githooks   # so pre-push runs crucible check
-crucible doctor
-crucible check
+cd your-project
+crucible init                 # scaffold + smoke gate + pre-push; sets hooksPath if unset
+crucible approve smoke --by "$USER"    # gates first (rewrites charter)
+crucible approve __config__ --by "$USER"
+# Commit approvals separately from the config files.
+crucible doctor && crucible check
 ```
 
-Commit each approval in a **separate** commit from the config it blesses.
-`init` is idempotent and will not overwrite existing files unless you pass `--force`.
-
-Adoption details: [docs/ADOPTING.md](docs/ADOPTING.md).
+Then fill recipe TODOs in `.crucible/acceptance.json` (and mutation/coverage/flake
+as needed) and set `highRiskUnits`. Full walkthrough:
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Day-to-day
 
 ```sh
-crucible test-smells path/to/tests   # hollow tests?
-crucible check                       # gates still honest?
-crucible run                         # app still boots?
-crucible cover                       # changed code executed?
-crucible harden                      # tests still bite on the diff?
+crucible test-smells path/to/tests
+crucible check
+crucible run          # needs acceptance.json filled
+crucible cover        # needs coverage recipe + a dirty diff
+crucible harden       # needs mutation recipe + a dirty diff
 ```
 
 `harden` and `cover` are **change-scoped**. On a clean tree they refuse to certify
-(nothing to measure) — that is intentional.
+(nothing to measure) — intentional.
 
 ## Agents
 

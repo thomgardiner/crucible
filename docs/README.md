@@ -2,7 +2,8 @@
 
 | Doc | Audience |
 | --- | --- |
-| [ADOPTING.md](ADOPTING.md) | Wire Crucible into a repo |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | Install → init → first green check |
+| [ADOPTING.md](ADOPTING.md) | Adapter and charter details |
 | [PROOFS.md](PROOFS.md) | What the automated proofs cover |
 | [RESOURCES.md](RESOURCES.md) | Concurrency and memory bounds for heavy arms |
 | [POSITIONING.md](POSITIONING.md) | Product framing (scope and non-claims) |

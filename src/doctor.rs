@@ -44,7 +44,16 @@ pub fn doctor(repo_root: &Path) -> Vec<Check> {
     checks.push(if on_path("git") {
         pass("git is available")
     } else {
-        fail("git not found on PATH — the mutation gate's diff scoping needs it")
+        fail("git not found on PATH — diff-scoped arms need it")
+    });
+
+    checks.push(if on_path("crucible") {
+        pass("crucible is on PATH (pre-push and agents can find it)")
+    } else {
+        warn(
+            "crucible not on PATH — install the CLI so pre-push and agent hooks work \
+             (https://github.com/thomgardiner/crucible/releases)",
+        )
     });
 
     // Which resource-containment path the heavy arms will use on this host.
@@ -52,8 +61,8 @@ pub fn doctor(repo_root: &Path) -> Vec<Check> {
         pass("resource containment: kernel-enforced (systemd-run cgroup scope)")
     } else {
         warn(
-            "resource containment: process-group fallback (no user cgroup scope) — a killed \
-             or setsid'd tree can escape; see the README containment table",
+            "resource containment: process-group fallback (no user cgroup scope) — see \
+             docs/RESOURCES.md",
         )
     });
 

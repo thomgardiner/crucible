@@ -44,7 +44,8 @@ use std::process::ExitCode;
 #[command(
     name = "crucible",
     version,
-    about = "The brutal AI testing framework: run proves the app is real, harden proves the tests bite, check verifies the gates are honest."
+    about = "Honesty layer for your tests: check gates, run the real app, harden with mutation, catch hollow tests.",
+    after_help = "Quick start:  crucible init && crucible doctor\nDocs:         https://github.com/thomgardiner/crucible#readme"
 )]
 struct Cli {
     /// Target repository (default: current directory).
@@ -858,7 +859,11 @@ fn cmd_flake(repo_root: &Path, recipe: Option<PathBuf>) -> Result<u8> {
 fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
     let r = init::scaffold(repo_root, force)?;
     let display_path = |f: &str| {
-        if f.starts_with(".githooks/") || f.starts_with('/') {
+        if f.starts_with(".githooks/")
+            || f.starts_with("scripts/")
+            || f.starts_with("checks/")
+            || f.starts_with('/')
+        {
             f.to_string()
         } else {
             format!(".crucible/{f}")
@@ -866,7 +871,7 @@ fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
     };
     if !r.written.is_empty() {
         println!(
-            "Crucible: scaffolded {} file(s) under {} and the independence hook:",
+            "Crucible: scaffolded {} file(s) under {}:",
             r.written.len(),
             r.dir.display()
         );
@@ -883,23 +888,27 @@ fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
             println!("  = {}", display_path(f));
         }
     }
-    if r.written.is_empty() {
+    if let Some(note) = &r.hooks_path_note {
+        println!("  ✓ {note}");
+    }
+    if r.written.is_empty() && r.hooks_path_note.is_none() {
         println!("Crucible: already initialized — nothing to write.");
         return Ok(0);
     }
     println!(
         "\nNext steps:
-  1. Fill the TODOs in .crucible/adapter.json (gate runner + highRiskUnits) and
-     acceptance.json / mutation.json (build, boot, drive, mutation command).
-  2. Replace the placeholder gate in charter.json with your real T1 gates, each
-     wired into the gate-runner file named in adapter.json.
-  3. Point git at the hook dir so pre-push fires:
-       git config core.hooksPath .githooks
-  4. Have a reviewer pin the config:  crucible approve __config__ --by <reviewer>
-     and each gate's oracle:          crucible approve <gate> --by <reviewer>
-     (separate commits from the config they bless).
-  5. Confirm it is honest:            crucible check && crucible doctor
-See docs/ADOPTING.md for the full contract."
+  1. Fill TODOs in .crucible/acceptance.json (build/boot/drive) and
+     mutation.json / coverage.json / flake.json for the arms you will use.
+  2. Set highRiskUnits in adapter.json (path stems where survivors must block).
+  3. Replace checks/check-smoke.sh + the \"smoke\" charter row with real gates,
+     or keep them as a placeholder.
+  4. Pin (gates first, then config — approving a gate rewrites the charter):
+       crucible approve smoke --by <you>
+       crucible approve __config__ --by <you>
+     Commit approvals separately from the config files.
+  5. crucible doctor && crucible check
+
+Docs: docs/GETTING_STARTED.md  ·  docs/ADOPTING.md"
     );
     Ok(0)
 }
@@ -914,7 +923,21 @@ fn cmd_doctor(repo_root: &Path) -> Result<u8> {
         };
         println!("  {sym} {}", c.msg);
     }
-    Ok(if doctor::any_fail(&checks) { 1 } else { 0 })
+    let failed = doctor::any_fail(&checks);
+    let warned = checks.iter().any(|c| c.status == doctor::Status::Warn);
+    println!();
+    if failed {
+        if !repo_root.join(".crucible").is_dir() {
+            println!("Next:  crucible init");
+        } else {
+            println!("Next:  fix the ✗ items above, then re-run  crucible doctor");
+        }
+    } else if warned {
+        println!("Healthy with warnings. Address ! items when you can, then run  crucible check");
+    } else {
+        println!("Healthy. Pin config if you have not:  crucible approve __config__ --by <you>");
+    }
+    Ok(if failed { 1 } else { 0 })
 }
 
 // The plugin wires TUI hook events to `crucible hook <event>`; the payload arrives on

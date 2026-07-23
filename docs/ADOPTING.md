@@ -7,49 +7,34 @@ to itself under `.crucible/`.
 
 ```sh
 crucible init
-git config core.hooksPath .githooks
 ```
 
-`init` writes adapter, charter, recipes, approvals, and a pre-push hook that runs
-`crucible check`. It does not overwrite existing files unless you pass `--force`.
+`init` writes adapter, charter, recipes, approvals, a minimal smoke gate
+(`scripts/verify.sh` + `checks/check-smoke.sh`), and a pre-push hook. If
+`core.hooksPath` is unset, it sets `.githooks` for this repo. Existing files are
+left alone unless you pass `--force`.
 
-## 2. Fill the adapter
+Prefer the short path in [GETTING_STARTED.md](GETTING_STARTED.md).
 
-`.crucible/adapter.json` points at your machinery:
+## 2. Adapter fields that matter
 
-```json
-{
-  "repo": "my-app",
-  "gateRunner": {
-    "command": "make verify",
-    "file": "scripts/verify.sh",
-    "checkerPattern": "sh (checks/check-[a-z-]+\\.sh)"
-  },
-  "highRiskUnits": ["payments", "auth"],
-  "prePush": ".githooks/pre-push"
-}
-```
+`.crucible/adapter.json` (filled with working defaults by `init`):
 
-- `gateRunner.file` + `checkerPattern` — how `check` finds checkers in the required lane
-  (first capture group = repo-relative checker path).
-- `highRiskUnits` — path components where surviving mutants and never-called functions
-  block (money, auth, checkout, etc.).
+- `gateRunner.file` + `checkerPattern` — how `check` finds checkers (first capture
+  group = repo-relative path).
+- `highRiskUnits` — path stems where survivors / never-called functions block.
 - `prePush` — load-bearing; missing or inert hooks fail `check` / `doctor`.
 
-Also set build/boot/drive in `acceptance.json`, and mutation/coverage/flake recipes
-as needed. See `examples/demo/` for a minimal complete project, or
-`examples/large-app.*.json` for a fuller shape.
+Fill `acceptance.json` (and mutation/coverage/flake) for the arms you use.
+See `examples/demo/` or `examples/large-app.*.json`.
 
-## 3. Seed the ledger and approve
-
-`.crucible/charter.json` lists every gate. One row per checker in the required lane,
-plus T3 rows for rules you have not automated yet.
+## 3. Approve
 
 ```sh
+# Gates first (gate approve rewrites the charter), then judge config.
+crucible approve smoke --by <reviewer>    # or your real gate ids
 crucible approve __config__ --by <reviewer>
-crucible approve <gate> --by <reviewer>
-crucible doctor
-crucible check
+crucible doctor && crucible check
 ```
 
 Commit each approval **separately** from the config or checker it blesses.

@@ -5,6 +5,13 @@
 First public release. A single Rust binary that sits on top of your existing test
 tools and fails closed when verification is hollow or incomplete.
 
+### Onboarding
+
+- `crucible init` scaffolds config, a **placeholder** smoke checker (proves wiring,
+  not behavior), pre-push, and recipes; sets `core.hooksPath` when unset.
+- `crucible doctor` checks PATH, prints next steps, and points at docs/RESOURCES.md.
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) — install → first green check.
+
 ### Commands
 
 - `check` / `audit` / `approve` — gate ledger honesty (wiring, approvals, load-bearing pre-push)

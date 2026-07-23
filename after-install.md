@@ -1,33 +1,58 @@
-# Crucible installed
+# Crucible plugin installed
 
-Crucible has two parts. The plugin you just installed ships the skill, the slash
-commands, and the Stop-hook nudge. The engine is the `crucible` CLI, installed
-separately:
+You have the skill, slash commands, and Stop-hook nudge.
+
+## Install the CLI (required)
+
+The plugin is not the engine. Put `crucible` on PATH:
 
 ```sh
-cargo install --locked --path .        # from a checkout
-# or the shell / powershell installer from the releases page
+# From a release (recommended)
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.sh | sh
 ```
 
-Once `crucible` is on PATH, the hooks activate automatically in any repo that has a
-`.crucible/` directory. Nothing fires in repos that have not adopted Crucible.
+```powershell
+powershell -ExecutionPolicy ByPass -c \
+  "irm https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.ps1 | iex"
+```
 
-## Commands
+```sh
+# From a source checkout
+cargo install --locked --path /path/to/crucible
+```
 
-- `/crucible`          verify this repo: run, harden, check
-- `/crucible-run`      does the app actually build, boot, and drive?
-- `/crucible-harden`   do the tests bite? (diff-scoped mutation)
-- `/crucible-check`    are the gates honest?
-- `/crucible-doctor`   is `.crucible` wired right?
-- `/crucible-init`     adopt Crucible in this repo
+```sh
+crucible --version
+```
 
-## The skill
+## Adopt a repo
 
-The bundled skill is available as `crucible`. It tells the agent to verify with
-`crucible run` / `harden` / `check` before reporting a change done.
+```sh
+cd /path/to/your/project
+crucible init
+crucible approve smoke --by "$USER"
+crucible approve __config__ --by "$USER"
+crucible doctor && crucible check
+```
 
-## The nudge
+Hooks only run in directories that contain `.crucible/`.
 
-In a repo with a `.crucible/` directory, when you finish with uncommitted changes and no
-recent verification, a Stop hook reminds you to run `crucible run` / `harden` first. Set
-`CRUCIBLE_NO_NUDGE=1` to silence it.
+## Slash commands
+
+| Command | Action |
+| --- | --- |
+| `/crucible` | Full verify path (skill POLICY) |
+| `/crucible-init` | `crucible init` |
+| `/crucible-doctor` | `crucible doctor` |
+| `/crucible-check` | `crucible check` |
+| `/crucible-run` | `crucible run` |
+| `/crucible-harden` | `crucible harden` |
+| `/crucible-config` | concurrency settings |
+
+## Stop nudge
+
+In an adopted repo, finishing with dirty work and no recent `run`/`harden` prompts
+you to verify first. Silence with `CRUCIBLE_NO_NUDGE=1` if needed.
+
+Full procedure: skill `POLICY.md`. Product docs: repo `docs/GETTING_STARTED.md`.
