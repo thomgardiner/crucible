@@ -356,8 +356,15 @@ fn the_admission_gate_honors_the_machine_config_file() {
     // admits, without any env var. With the file granting 2 slots, a second session is
     // admitted while the first still holds slot 0 — under the default (1) it is refused
     // (proven by two_sessions_serialize_on_the_machine_wide_slot).
-    if std::thread::available_parallelism().map_or(1, |n| n.get()) < 2 {
-        return; // the cores cap would clamp 2 back to 1 and invalidate the setup
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    assert!(
+        cores >= 1,
+        "parallelism probe must return a value (or the default 1)"
+    );
+    if cores < 2 {
+        // Dual-slot admission is proven on multi-core hosts; single-core caps max at 1.
+        eprintln!("skip: need ≥2 cores for dual-slot admission proof (have {cores})");
+        return;
     }
     let slots = tempfile::tempdir().unwrap();
     let cfg = tempfile::tempdir().unwrap();

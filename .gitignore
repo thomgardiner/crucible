@@ -1,12 +1,101 @@
-/target
+# -----------------------------------------------------------------------------
+# Crucible — public repository ignore rules
+# Keep the product surface tracked; keep local harness noise and secrets out.
+# -----------------------------------------------------------------------------
+
+# --- Build & package artifacts ---
+/target/
+**/target/
+Cargo.lock.bak
+dist/
+*.rlib
+*.rmeta
+
+# --- Mutation / coverage / profiling (generated) ---
 /mutants.out/
 /mutants.out.old/
-Cargo.lock.bak
+**/mutants.out/
+**/mutants.out.old/
+*.profraw
+*.profdata
+coverage/
+.htmlcov/
+lcov.info
+**/lcov.info
+*.lcov
 
-# proof crate build artifacts (the crate source and captured output are committed)
+# Proof-crate local builds (source + captured mutants output stay committed)
 examples/proof/**/target/
 examples/proof/**/mutants.out/
 examples/proof/**/Cargo.lock
 
-# generated at runtime by `crucible harden`
+# Crucible runtime output (never commit)
 **/.crucible/survivors.json
+**/.crucible/receipts/
+**/.crucible/*.receipt
+
+# --- OS & editors ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+*.orig
+*.rej
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-*
+
+# --- Local agent / IDE harness state (never ship) ---
+# Product plugin manifests stay tracked: .claude-plugin/, .codex-plugin/
+.claude/
+.grok/
+.agents/
+.agent/
+.cursor/
+.codex/
+.gemini/
+.windsurf/
+.continue/
+.aider*
+.repomix*
+.worktrees/
+.grove/
+.summoner/
+.augment/
+.github/copilot-instructions.local.md
+
+# --- Env, secrets, local overrides ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.*
+secrets.*
+*.local
+*.local.*
+!.env.example
+
+# --- Internal planning (not the product docs under docs/*.md) ---
+docs/internal/
+**/TODO.local.md
+**/NOTES.local.md
+**/scratch/
+**/tmp/
+/tmp/
+
+# --- Logs & misc local noise ---
+*.log
+logs/
+.cache/
+.direnv/
+.direnv
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,5 +1,5 @@
 {
-  "_note": "Crucible recipe for Battlemage, grounded in its real boot path. The boot/drive harnesses already EXIST but only run at release time or under FullVerification — the normal per-change gate never launches the real app, which is the 'green but crashes on launch' gap. Wiring this recipe into the change lane closes it. Boot/drive need a GUI session + tauri-driver + a built webview-e2e binary; the trust phase is static and runs anywhere.",
+  "_note": "Reference acceptance recipe for a large Rust + frontend desktop app. Boot/drive commands are illustrative — replace with your real build, readiness oracle, and end-to-end drives. Only the canonical .crucible/acceptance.json path certifies.",
   "repo": "battlemage",
   "build": {
     "cmd": "npm --prefix frontend run build && cargo build -p battlemage --features webview-e2e",
@@ -8,12 +8,12 @@
   "boot": {
     "cmd": "pwsh -NoProfile -File scripts/run-native-feature-e2e.ps1",
     "timeoutSec": 600,
-    "oracle": { "stdoutForbid": "panicked|thread 'main'|DB-OPEN-FAILED|RekeyIncomplete" }
+    "oracle": { "stdoutForbid": "panicked|thread 'main'|DB-OPEN-FAILED" }
   },
   "drive": [
     {
-      "name": "target-full-checkout-replay",
-      "cmd": "cargo nextest run -p e2e --features harness -E 'test(target_full_checkout)'",
+      "name": "checkout-replay",
+      "cmd": "cargo nextest run -p e2e --features harness -E 'test(checkout_flow)'",
       "timeoutSec": 600,
       "oracle": { "stdoutMatch": "1 passed|tests run: 1" }
     },
@@ -25,8 +25,8 @@
     }
   ],
   "trust": {
-    "testRoots": ["crates", "frontend/tests", "frontend/src", "browser-sidecar/src", "src-tauri"],
-    "testPattern": "(\\.test\\.[tj]sx?$|\\.spec\\.[tj]sx?$|_tests?\\.rs$|/tests?\\.rs$|_tests\\.rs$)",
-    "mockMarkers": ["mockIPC(", "renderWithProviders", "Database::open_in_memory", "open_in_memory", "BackendMock", "wiremock", "MockServer"]
+    "testRoots": ["crates", "frontend/tests", "frontend/src", "src-tauri"],
+    "testPattern": "(\\.test\\.[tj]sx?$|\\.spec\\.[tj]sx?$|_tests?\\.rs$|/tests?\\.rs$)",
+    "mockMarkers": ["mockIPC(", "renderWithProviders", "open_in_memory", "wiremock", "MockServer"]
   }
 }

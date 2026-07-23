@@ -1,7 +1,8 @@
 {
   "repo": "battlemage",
-  "charter": ".claude/enforcement/charter.json",
-  "approvals": ".claude/enforcement/approvals.json",
+  "_note": "Reference adapter for a large Rust + Tauri app. Paths use the portable .crucible/ layout; point gateRunner at your real verify entry.",
+  "charter": ".crucible/charter.json",
+  "approvals": ".crucible/approvals.json",
   "gateRunner": {
     "command": "grove verify change",
     "file": "scripts/verify.ps1",
@@ -11,9 +12,9 @@
   "highRiskUnits": ["target", "cybersource", "amazon", "shopify", "samsclub", "fanatics"],
   "prePush": ".githooks/pre-push",
   "pinnedConfig": [
-    ".claude/enforcement/adapter.json",
-    ".claude/enforcement/mutation.json",
-    ".claude/enforcement/acceptance.json",
-    ".claude/enforcement/mutation-waivers.json"
+    ".crucible/adapter.json",
+    ".crucible/mutation.json",
+    ".crucible/acceptance.json",
+    ".crucible/mutation-waivers.json"
   ]
 }

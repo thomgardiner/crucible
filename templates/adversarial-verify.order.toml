@@ -2,14 +2,14 @@
 # change's tests: mutate the code under test and confirm the tests catch it. The
 # agent that wrote the code does not grade its own tests.
 #
-# Fill in <id>, <scope>, and <base>. Run through your fleet orchestrator (e.g.
-# `summoner run orders/`). The order fails when a planted fault survives the tests,
-# which is the signal that the tests do not constrain behavior.
+# Fill in <id>, <scope>, and <base>. Run through your fleet orchestrator. The order
+# fails when a planted fault survives the tests — the signal that tests do not
+# constrain behavior.
 
 id = "adversarial-verify-<id>"
 title = "Adversarially verify the tests for <id>"
 executor = "codex"
-base = "grove/smn-<id>"
+base = "main"
 scope = ["<scope>"]
 
 brief = """

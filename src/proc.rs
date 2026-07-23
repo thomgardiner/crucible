@@ -1,7 +1,7 @@
 //! Run a shell command under a hard timeout, capturing combined stdout+stderr, and
 //! kill the whole process tree if it overruns. A recipe's real work (cargo, the app)
 //! runs in grandchild processes, so a bare child-kill would leave them alive holding
-//! the pipes open — the group/job kill is mirrored from Summoner's `backend_provenance`.
+//! the pipes open — whole process-group / Job Object kill on every exit path.
 
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;

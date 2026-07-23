@@ -1,7 +1,8 @@
 {
-  "_note": "Crucible mutation recipe for Battlemage. Runs cargo-mutants scoped to the diff through a warm Grove lane (the isolated target cache is what makes a blocking mutation gate affordable). Blocks when the change touches a highRiskUnit (adapter), advisory otherwise. Surviving mutants land in .crucible/survivors.json as the next tests to write — feed them back through a Summoner order revision.",
-  "cmd": "grove exec --tag mutation -- pwsh -NoProfile -File scripts/mutants.ps1 -BaseRef origin/master",
-  "base": "origin/master",
+  "_note": "Reference mutation recipe for a large Cargo workspace. Prefer an isolated build lane so blocking mutation stays affordable. Survivors land in .crucible/survivors.json.",
+  "cmd": "cargo mutants --in-diff origin/main",
+  "base": "origin/main",
   "timeoutSec": 2400,
-  "survivorPattern": "^MISSED\\s+([^\\s:]+):(\\d+)(?::\\d+)?:\\s*(.+)$"
+  "memoryMb": 2048,
+  "survivorPattern": "^(?:MISSED|TIMEOUT)\\s+([^\\s:]+):(\\d+)(?::\\d+)?:\\s*(.+)$"
 }

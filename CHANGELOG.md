@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Skill POLICY:** `skills/crucible/POLICY.md` is the agent gauntlet (forbidden claims,
+  risk ladder, independence honesty, done-report). SKILL.md is thin and points at it.
+- **`.gitignore`:** excludes local agent harness dirs (`.claude/`, `.grok/`,
+  `.agents/`, …), internal plan docs, and mutation/coverage noise; keeps product
+  plugin manifests (`.claude-plugin/`, `.codex-plugin/`).
+- **Meta-proof honesty:** proof suite asserts material side-effects (receipts,
+  survivors.json, exit codes), not banners alone; positive controls for clean
+  paths; self `test-smells` on `tests/` + `src/`; custom-recipe proof requires
+  receipt absence + canonical path presence. PROOFS.md documents the rule.
+- **Independence honesty (single-dev + agents threat model):** cryptographic
+  “approver ≠ author” is impossible when agents commit as the developer. Instead:
+  - `adapter.prePush` is **load-bearing** — `check`/`doctor` fail if it is missing,
+    the file is gone, or the hook does not run `crucible check` on an active line.
+  - `init` scaffolds `.githooks/pre-push` that invokes `crucible check`.
+  - Same-commit self-approval: when **HEAD** last wrote the approvals log together
+    with judge config, `check` fails (historical monorepo dumps that co-committed
+    once no longer fail forever after HEAD moves on).
+  - Docs (POSITIONING, ADOPTING) state the claim plainly: independence = verified
+    pre-push wiring + auditable separate-commit trail, not multi-party crypto.
+- `harden` / `cover` / `run`: a custom `--recipe` is a **dry run** — never certifies
+  (no receipt); only the repo’s approved `.crucible` recipe can mint evidence.
+- Fail-closed diff scoping: empty high-risk / empty scope cannot certify; high-risk
+  units match path components / file stems, not bare substrings.
 - `crucible config max-concurrency <N>`: persist the machine-wide concurrency budget to
   a machine-level config file (env var > file > default, always capped at core count).
   `crucible config` and `crucible doctor` report the effective value and which layer set

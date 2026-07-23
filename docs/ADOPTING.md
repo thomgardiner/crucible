@@ -55,7 +55,14 @@ Register that step in the ledger too. Crucible checks itself.
 
 ## Keeping it honest at push time
 
-Point your pre-push hook at two things: a fresh required-lane pass, and a refusal to
-accept a change to the charter or any pinned oracle without a matching approval
-recorded by someone other than the author. The core detects the drift; the pre-push
-policy enforces the separation.
+`crucible init` scaffolds `.githooks/pre-push` that runs `crucible check`. Point
+`git config core.hooksPath .githooks` (or install the hook into `.git/hooks`) so it
+actually fires. **`check` and `doctor` fail if `adapter.prePush` is missing, the file
+is gone, or the hook does not run `crucible check`** — so independence is a verified
+wiring fact, not a claim on a dead adapter field.
+
+Also commit each `crucible approve` **separately** from the config/checker it blesses.
+`check` flags when the approvals log was last committed together with judge config
+(same-commit self-approval). That is the strongest honest trail under a single-developer
++ agents model (agents share the developer's git identity; cryptographic multi-party
+approval is out of scope — see POSITIONING.md).

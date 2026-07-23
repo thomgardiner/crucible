@@ -1,7 +1,7 @@
 //! `crucible doctor`: adoption health. Reports whether a repo's `.crucible/` config is
 //! present, parses, resolves its gate runner, has its mutation tool on PATH, and passes
-//! the honesty check. Parity with `summoner doctor` — a fast "is this wired right?" pass
-//! before the real gates run. Any Fail exits non-zero.
+//! the honesty check. A fast "is this wired right?" pass before the real gates run.
+//! Any Fail exits non-zero.
 
 use crate::charter::check_charter;
 use crate::config::{Adapter, Approval, Ledger, load_json};

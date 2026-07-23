@@ -87,14 +87,24 @@ with no completion evidence; `cover` and `flake` reject a timeout, a non-zero ex
 invalid pattern. "Objective" means the evidence is a real artifact (a surviving mutant, a
 zero-hit function, a boot crash), not that the checks are unbypassable by a hostile config.
 
-Two limits are by design, not bugs, and are stated rather than hidden: `check` verifies a
-gate's wiring and approval **statically** — it does not execute the checker, so it proves a
-checker is registered and its bytes are approved, not that it ran and blocked at runtime;
-and approver independence (approver ≠ author) is enforced at the repo's pre-push layer, not
-by the approval record, which the core only requires to be present and non-blank. A
-third-party review (Codex) found several exit-0 bypasses in the recipe-grading arms; those
-are fail-closed and guarded by regression tests. The honest framing is "strong, fail-closed
-signals," not "un-gameable."
+Limits stated rather than hidden:
+
+1. **`check` is static wiring + approval integrity.** It does not execute each checker, so
+   it proves a checker is registered and its bytes are approved, not that it blocked at
+   runtime in a prior CI run.
+2. **Independence is not cryptographic.** The threat model is a single developer plus
+   agents that commit as that developer — there is no second git identity to verify
+   in-core. What Crucible *does* verify: `adapter.prePush` names a real hook file that
+   actually runs `crucible check` (load-bearing; missing or inert hooks fail `check` /
+   `doctor`), and the approvals log is not last committed in the same revision as the
+   judge config it blesses (same-commit self-approval is flagged). The approval record
+   still requires a non-blank `approvedBy`. Stronger "approver ≠ author" claims would be
+   a lie in this model.
+3. **Recipes are only as honest as the repo.** Fail-closed on empty/missing oracles and
+   uncertified custom `--recipe` paths; not omniscient against a hostile recipe.
+
+The honest framing is **"strong, fail-closed signals + an auditable trail,"** not
+"un-gameable" or "cryptographic multi-party approval."
 
 ## Delivery: skill on-ramp, CLI backstop
 

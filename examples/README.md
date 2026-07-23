@@ -30,8 +30,9 @@ Add a boundary assertion and `cargo mutants` reports every mutant caught. Both p
 
 ## Config references
 
-`battlemage.*.json` are real-shaped adapter, charter, acceptance, and mutation recipes
-for a large Rust + Tauri app, showing how a production repo wires in.
+`battlemage.*.json` are **portable** adapter / charter / acceptance / mutation shapes for
+a large Rust + Tauri-style app (paths under `.crucible/`). Copy and rename; replace
+commands with your real verify, build, and mutation entry points.
 
 ## See also
 

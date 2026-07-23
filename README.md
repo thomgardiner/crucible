@@ -8,8 +8,10 @@ replaces trust with three checks, plus one law.
 - **`crucible check`** verifies the **gates** are honest: every load-bearing rule is
   wired into the required lane, no checker runs unregistered, and no gate's checker or
   config was weakened without an approval recorded separately from the change. It checks
-  wiring and approval integrity statically; it does not execute the checkers, and approver
-  independence (approver ≠ author) is enforced at the repo's pre-push layer.
+  wiring and approval integrity statically (it does not execute the checkers). Independence
+  is **not** multi-party cryptography: under a single-developer + agents model, Crucible
+  verifies that `prePush` actually runs `crucible check` and flags same-commit self-approvals
+  at HEAD — an auditable trail, not a second identity.
 - **`crucible run`** proves the **app** is real: it builds, boots, and drives the real
   artifact against real oracles. A green unit suite and a working app are different claims.
 - **`crucible harden`** proves the **tests** are real: diff-scoped mutation testing. A
@@ -49,8 +51,9 @@ crucible doctor                   # is it wired right?
 crucible check                    # confirm every gate is honest
 ```
 
-`init` is idempotent and never overwrites your config. The approver must not be the
-author: commit an approval separately from the change it approves.
+`init` is idempotent and never overwrites your config. It scaffolds a pre-push hook that
+runs `crucible check`. Commit each approval **separately** from the config it blesses
+(`check` flags same-commit self-approval at HEAD).
 
 ## Commands
 
