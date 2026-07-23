@@ -45,7 +45,13 @@ fn ensure_demo_git() {
     )
     .unwrap();
     git(&["add", "app/core.ts"]);
-    git(&["-c", "commit.gpgsign=false", "commit", "-qm", "core in scope"]);
+    git(&[
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-qm",
+        "core in scope",
+    ]);
 }
 
 #[test]
