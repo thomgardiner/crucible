@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Crucible independence layer — do not remove `crucible check`.
+set -e
+command -v crucible >/dev/null 2>&1 || { echo "crucible: not on PATH" >&2; exit 1; }
+crucible check

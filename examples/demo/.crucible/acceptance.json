@@ -1,0 +1,7 @@
+{
+  "repo": "demo",
+  "build": { "cmd": "true" },
+  "boot": { "cmd": "sh app/app.sh", "oracle": { "stdoutMatch": "demo-app: ready", "stdoutForbid": "panicked" } },
+  "drive": [{ "name": "checkout", "cmd": "sh app/app.sh checkout", "oracle": { "stdoutMatch": "ORDER PLACED" } }],
+  "trust": { "testRoots": ["app"], "testPattern": "\\.test\\.ts$", "mockMarkers": ["mock", "stub"] }
+}

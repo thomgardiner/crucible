@@ -1,0 +1,4 @@
+# Loop-index `+=` -> `*=` mutants in the masker never advance while appending
+# to a Vec, so they allocate until killed. The harden runner's memory ceiling
+# remains the backstop for every other mutation tool and mutant.
+exclude_re = ["src/mask\\.rs:.*replace \\+= with \\*="]

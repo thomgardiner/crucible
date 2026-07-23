@@ -1,0 +1,12 @@
+/target
+/mutants.out/
+/mutants.out.old/
+Cargo.lock.bak
+
+# proof crate build artifacts (the crate source and captured output are committed)
+examples/proof/**/target/
+examples/proof/**/mutants.out/
+examples/proof/**/Cargo.lock
+
+# generated at runtime by `crucible harden`
+**/.crucible/survivors.json

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manaforge.dev/crucible/adapter.schema.json",
+  "title": "Crucible Project Adapter",
+  "description": "Binds the portable Enforcement Charter to one repository's real gate machinery.",
+  "type": "object",
+  "required": ["repo", "gateRunner", "highRiskUnits"],
+  "properties": {
+    "repo": { "type": "string", "description": "Repository name." },
+    "charter": { "type": "string", "description": "Repo-relative path to the Gate Ledger. Default .crucible/charter.json." },
+    "approvals": { "type": "string", "description": "Repo-relative path to the append-only approvals log. Default .crucible/approvals.json." },
+    "gateRunner": {
+      "type": "object",
+      "required": ["file", "checkerPattern"],
+      "properties": {
+        "command": { "type": "string", "description": "How the required per-change gate is invoked, for humans." },
+        "file": { "type": "string", "description": "Repo-relative gate-runner script to scan for wired checkers." },
+        "checkerPattern": { "type": "string", "description": "Regex applied to the gate-runner file; capture group 1 is a wired checker's repo-relative path." }
+      }
+    },
+    "changeToUnits": { "type": "string", "description": "How changed files map to build units (informational)." },
+    "highRiskUnits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The money/checkout-critical build units where a silent test is catastrophic; drives highRisk blocking."
+    },
+    "prePush": { "type": "string", "description": "Repo-relative path to the pre-push enforcement hook." },
+    "pinnedConfig": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Judge-config files (this adapter, mutation/acceptance recipes, mutation-waivers) whose combined fingerprint must be independently approved (crucible approve __config__), so enforcement cannot be weakened silently by emptying highRiskUnits, no-oping a recipe, or blanket-waiving mutants."
+    }
+  }
+}

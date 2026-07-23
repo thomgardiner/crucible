@@ -1,0 +1,62 @@
+[
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T16:15:37Z",
+    "checkerSha256": "a3dece7e09acf48a4b063d588a8c3d9274115893676f3ce6264d128cfa8d356f",
+    "fingerprint": "b49434a0f6cb2726012c938a822ec90f10bfb2b31195d675a6fcc6694e7d8c1a",
+    "gate": "no-eval",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T16:15:37Z",
+    "fingerprint": "4effda0b107711f6447ed7eefc4de0fd5663a4e5356e06895ed7c8c09cf6cc5b",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T18:36:27Z",
+    "checkerSha256": "a3dece7e09acf48a4b063d588a8c3d9274115893676f3ce6264d128cfa8d356f",
+    "fingerprint": "dbeafa6d10e230983d71be74b6b0d2717714e4bebba516b750997602c9e30956",
+    "gate": "no-eval",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T18:36:27Z",
+    "fingerprint": "153d36193ee8ea83ac45d73181905e3ebd9716f002e4c639725e01773e2b77c5",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T21:49:02Z",
+    "checkerSha256": "a3dece7e09acf48a4b063d588a8c3d9274115893676f3ce6264d128cfa8d356f",
+    "fingerprint": "dbeafa6d10e230983d71be74b6b0d2717714e4bebba516b750997602c9e30956",
+    "gate": "no-eval",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-22T21:49:02Z",
+    "fingerprint": "fdbdebf8b24d9633434b1d3f35ad37288e21711713acdc4e772766252896b374",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T16:42:18Z",
+    "checkerSha256": "a3dece7e09acf48a4b063d588a8c3d9274115893676f3ce6264d128cfa8d356f",
+    "fingerprint": "dbeafa6d10e230983d71be74b6b0d2717714e4bebba516b750997602c9e30956",
+    "gate": "no-eval",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T16:42:18Z",
+    "fingerprint": "74b258988e81fef1ea9a2ef212390549ad7dedd9d5c1bd208d8b7c7d47f4fb36",
+    "gate": "__config__",
+    "note": ""
+  }
+]

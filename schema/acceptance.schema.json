@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manaforge.dev/crucible/acceptance.schema.json",
+  "title": "Crucible Acceptance Recipe",
+  "description": "Declares how to deterministically build, boot, and drive a repo's real artifact, plus the trust audit of its mocked boundaries.",
+  "type": "object",
+  "required": ["build", "boot"],
+  "properties": {
+    "repo": { "type": "string" },
+    "build": { "$ref": "#/$defs/step", "description": "Build the shippable artifact (not a test build)." },
+    "boot": { "$ref": "#/$defs/step", "description": "Launch the real app and probe readiness; the oracle is the real ready signal." },
+    "drive": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" },
+      "description": "Real end-to-end flows against real/recorded inputs with real oracles."
+    },
+    "trust": {
+      "type": "object",
+      "required": ["testRoots", "testPattern"],
+      "properties": {
+        "testRoots": { "type": "array", "items": { "type": "string" }, "description": "Repo-relative directories to scan for test files." },
+        "testPattern": { "type": "string", "description": "Regex a test file path must match." },
+        "mockMarkers": { "type": "array", "items": { "type": "string" }, "description": "Substrings that mark a file as crossing a mocked boundary." }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["cmd"],
+      "properties": {
+        "name": { "type": "string" },
+        "cmd": { "type": "string", "description": "Shell command run at the repo root (or cwd)." },
+        "cwd": { "type": "string", "description": "Repo-relative working directory. Defaults to the repo root." },
+        "timeoutSec": { "type": "number", "description": "Hard timeout; exceeding it is a failure (exit 124)." },
+        "oracle": {
+          "type": "object",
+          "description": "Real success check beyond exit 0.",
+          "properties": {
+            "stdoutMatch": { "type": "string", "description": "Regex that must appear in output for success." },
+            "stdoutForbid": { "type": "string", "description": "Regex that must NOT appear (e.g. panic markers)." }
+          }
+        }
+      }
+    }
+  }
+}

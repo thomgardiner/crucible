@@ -1,0 +1,2 @@
+description = "Adopt Crucible in this repo: scaffold .crucible/ config."
+prompt = "Run `crucible init` to scaffold .crucible/, then fill the TODOs: point the adapter at this repo's real gate runner, list its money/checkout paths in highRiskUnits, and set the build/boot/drive commands and the mutation command in the recipes. Then have a reviewer run `crucible approve __config__` and `crucible approve <gate>`, and confirm with `crucible check`. See docs/ADOPTING.md."

@@ -1,0 +1,12 @@
+{
+  "gates": [
+    {
+      "blockingCondition": "always",
+      "checker": "checks/check-no-eval.sh",
+      "id": "no-eval",
+      "oracleSha256": "a3dece7e09acf48a4b063d588a8c3d9274115893676f3ce6264d128cfa8d356f",
+      "rule": "no eval() in app code",
+      "tier": "T1"
+    }
+  ]
+}

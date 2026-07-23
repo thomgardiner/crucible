@@ -1,0 +1,24 @@
+{
+  "_note": "Adoption seed for Battlemage. Tiers reflect the current verify.ps1 wiring; oracleSha256 values are pinned with `crucible approve` at landing time. Golden rules with no mechanical gate are declared T3 with a reason, which is the point of the first pass: it makes the prose-vs-enforced gap explicit.",
+  "gates": [
+    { "id": "test-trust", "rule": "GOLDEN_RULES §6 — no reward-hacked tests (skips, focused, copied impls, CI retries)", "tier": "T1", "checker": "scripts/check-test-trust.mjs", "blockingCondition": "always" },
+    { "id": "ipc-contract", "rule": "GOLDEN_RULES §8 — frontend↔Tauri command/type contract stays in sync", "tier": "T1", "checker": "scripts/check-ipc-contract.mjs", "blockingCondition": "always" },
+    { "id": "runtime-bounds", "rule": "no unbounded production runtime channels", "tier": "T1", "checker": "scripts/check-runtime-bounds.mjs", "blockingCondition": "always" },
+    { "id": "knowledge-layer", "rule": "GOLDEN_RULES §13 — typed, indexed, linked knowledge docs", "tier": "T1", "checker": "scripts/check-knowledge.mjs", "blockingCondition": "always" },
+    { "id": "e2e-flow-coverage", "rule": "production module E2E flow matrix is covered", "tier": "T1", "checker": "scripts/check-e2e-flow-coverage.mjs", "blockingCondition": "always" },
+    { "id": "feature-e2e-coverage", "rule": "native feature E2E matrix is covered", "tier": "T1", "checker": "scripts/check-feature-e2e-coverage.mjs", "blockingCondition": "always" },
+    { "id": "pressure-gates", "rule": "engine 1,000-task pressure SLO holds", "tier": "T1", "checker": "scripts/run-pressure-gates.mjs", "blockingCondition": "always" },
+    { "id": "impact-selector", "rule": "change-to-crate impact selection is correct and fail-closed", "tier": "T1", "checker": "tools/test-impact.mjs", "blockingCondition": "always" },
+    { "id": "doc-coverage", "rule": "durable docs cover the code they describe", "tier": "T2", "checker": "scripts/check-doc-coverage.mjs", "blockingCondition": "advisory", "reason": "advisory doc-quality signal; runs in qualification, not required per change" },
+    { "id": "doc-freshness", "rule": "docs are not stale relative to the code they anchor", "tier": "T2", "checker": "scripts/check-doc-freshness.mjs", "blockingCondition": "advisory", "reason": "advisory; freshness heuristics are noisy, kept out of the required lane" },
+    { "id": "doc-links", "rule": "doc cross-links resolve", "tier": "T2", "checker": "scripts/check-doc-links.mjs", "blockingCondition": "advisory", "reason": "advisory; broken-link report, non-blocking on the inner loop" },
+    { "id": "mutation-diff", "rule": "changed lines have their mutants killed (the keystone un-gameable metric)", "tier": "T2", "checker": "scripts/mutants.ps1", "blockingCondition": "advisory", "reason": "PROMOTION TARGET (Plank B): currently qualification-only with continue_on_failure; move to T1 tiered — blocking on money/checkout crates, advisory elsewhere" },
+    { "id": "coverage-100", "rule": "100% region coverage on changed Rust", "tier": "T2", "checker": "scripts/coverage.ps1", "blockingCondition": "advisory", "reason": "necessary-not-sufficient; coverage shows reachability, mutation shows behavior-checking — keep as milestone under the mutation keystone" },
+    { "id": "squash-history", "rule": "GOLDEN_RULES §16 — squash before updating shared history", "tier": "T0", "checker": ".githooks/pre-push", "blockingCondition": "always" },
+    { "id": "protect-worktree", "rule": "GOLDEN_RULES §1 — no drive-by refactors or unrelated worktree changes", "tier": "T3", "reason": "human-judgement rule; no mechanical checker distinguishes a drive-by from an in-scope change. Partially observed by Summoner scope claims for delegated work." },
+    { "id": "product-boundary", "rule": "GOLDEN_RULES §3 — okayserver is the brain, battlemage the hands", "tier": "T3", "reason": "architectural boundary enforced by review, not a checker; a false positive would block legitimate client-side work" },
+    { "id": "re-scope", "rule": "GOLDEN_RULES §4 — authorized reverse-engineering scope", "tier": "T3", "reason": "policy statement, not a code invariant" },
+    { "id": "crate-boundaries", "rule": "GOLDEN_RULES §9 — respect crate dependency directions; keep common light", "tier": "T3", "reason": "no dependency-direction structural test yet. Candidate to promote to T1 with a cargo-metadata boundary checker (the OpenAI-harness pattern)." },
+    { "id": "no-time-estimates", "rule": "GOLDEN_RULES §15 — effort/duration are not scoping criteria", "tier": "T3", "reason": "process rule about planning language, not mechanically checkable" }
+  ]
+}

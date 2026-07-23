@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manaforge.dev/crucible/charter.schema.json",
+  "title": "Crucible Gate Ledger",
+  "description": "The registry of every enforced rule in a repository, one row per gate.",
+  "type": "object",
+  "required": ["gates"],
+  "properties": {
+    "gates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gate" }
+    }
+  },
+  "$defs": {
+    "gate": {
+      "type": "object",
+      "required": ["id", "rule", "tier"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "rule": { "type": "string", "description": "The invariant this gate enforces, in prose." },
+        "tier": {
+          "type": "string",
+          "enum": ["T0", "T1", "T2", "T3"],
+          "description": "T0 per-edit hook, T1 required per-change lane (load-bearing), T2 milestone/non-blocking, T3 prose-only."
+        },
+        "checker": {
+          "type": "string",
+          "description": "Repo-relative path to the checker script. Required for T0/T1/T2."
+        },
+        "oracleSha256": {
+          "type": "string",
+          "description": "The approved SHA-256 digest of the checker (the judge's pinned bytes). Drift requires independent approval."
+        },
+        "trustedFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": { "type": "string" },
+              "sha256": { "type": "string" }
+            }
+          },
+          "description": "Extra inputs whose bytes are part of this gate's trusted computing base."
+        },
+        "blockingCondition": {
+          "type": "string",
+          "enum": ["always", "highRisk", "advisory"],
+          "description": "always blocks every change; highRisk blocks only when a highRiskUnit is touched; advisory reports but never blocks."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Required for tier T3 and for blockingCondition advisory: why this rule is not a blocking gate."
+        }
+      }
+    }
+  }
+}

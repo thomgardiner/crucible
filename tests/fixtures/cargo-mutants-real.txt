@@ -1,0 +1,4 @@
+Found 3 mutants to test
+ok       Unmutated baseline in 0s build + 0s test
+MISSED   src/lib.rs:4:5: replace should_buy -> bool with true in 0s build + 0s test
+3 mutants tested in 1s: 1 missed, 2 caught

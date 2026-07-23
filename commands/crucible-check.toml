@@ -1,0 +1,2 @@
+description = "Are the gates honest? Verify enforcement is real, not prose."
+prompt = "Run `crucible check` in this repo and report violations. Each means a declared gate is not wired where it claims, a checker runs unregistered, or an oracle/config changed without an independent approval. Fix the wiring or record the approval (a reviewer, not the author). Do not weaken the gate to make check pass."

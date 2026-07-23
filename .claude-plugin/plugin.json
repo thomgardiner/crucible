@@ -1,0 +1,11 @@
+{
+  "name": "crucible",
+  "version": "0.1.0",
+  "description": "Keep coding agents honest about testing: prove the gates are real (check), the app is real (run), and the tests actually bite (harden). Ships the crucible skill, slash commands, and a Stop-hook nudge; the crucible CLI is the engine (install separately).",
+  "author": {
+    "name": "Thomas Gardiner",
+    "organization": "Manaforge"
+  },
+  "homepage": "https://github.com/thomgardiner/crucible",
+  "hooks": "./hooks/claude-codex-hooks.json"
+}

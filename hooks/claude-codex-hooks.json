@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v crucible >/dev/null 2>&1 && crucible hook session-start || true",
+            "commandWindows": "if (Get-Command crucible -ErrorAction SilentlyContinue) { crucible hook session-start }",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v crucible >/dev/null 2>&1 && crucible hook stop || true",
+            "commandWindows": "if (Get-Command crucible -ErrorAction SilentlyContinue) { crucible hook stop }",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

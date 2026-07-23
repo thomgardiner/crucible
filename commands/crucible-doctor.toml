@@ -1,0 +1,2 @@
+description = "Is Crucible wired right in this repo?"
+prompt = "Run `crucible doctor` and report each check. Fix any failures: a missing or unparsable .crucible config, a gate runner that does not resolve, a mutation tool not on PATH, or a dishonest charter."

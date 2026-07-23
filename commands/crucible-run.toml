@@ -1,0 +1,2 @@
+description = "Does the app actually run? Build, boot, and drive the real artifact."
+prompt = "Run `crucible run` in this repo and report the verdict. If BROKEN, read the attached phase output, fix the root cause (build, boot, or a failing drive flow), and rerun until it RUNS. A green unit suite is not proof the app boots."

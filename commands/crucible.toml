@@ -1,0 +1,2 @@
+description = "Verify this repo with Crucible: run, harden, and check, then summarize what to fix."
+prompt = "Verify this repository with Crucible before treating any change as done. Run `crucible run` (does the app build, boot, and drive?), `crucible harden` (do the tests constrain behavior on changed code?), and `crucible check` (are the gates honest?). Report each verdict. If anything is BROKEN, a mutant survived, or a gate is dishonest, fix the root cause and rerun. Do not report the work as tested until all three are clean or a failure is explicitly justified."

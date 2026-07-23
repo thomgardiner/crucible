@@ -1,0 +1,33 @@
+# Author-is-not-judge adversarial verify. Dispatch an independent agent to attack a
+# change's tests: mutate the code under test and confirm the tests catch it. The
+# agent that wrote the code does not grade its own tests.
+#
+# Fill in <id>, <scope>, and <base>. Run through your fleet orchestrator (e.g.
+# `summoner run orders/`). The order fails when a planted fault survives the tests,
+# which is the signal that the tests do not constrain behavior.
+
+id = "adversarial-verify-<id>"
+title = "Adversarially verify the tests for <id>"
+executor = "codex"
+base = "grove/smn-<id>"
+scope = ["<scope>"]
+
+brief = """
+You are an adversarial reviewer. The code on this branch changed <scope> and added
+or modified tests. Your job is to prove those tests are worthless, or fail trying.
+
+1. Read the diff. For each behavior the change claims to test, introduce a real
+   fault in the PRODUCTION code (flip a comparison, drop a field, return early,
+   weaken a bound) that a correct test must catch.
+2. Run the change's own test command. If any planted fault leaves the tests green,
+   that test does not constrain behavior. Record the exact fault and the passing
+   test.
+3. Do not edit the tests. Do not edit anything outside <scope>. Revert your faults
+   before finishing.
+
+Report every fault that survived. Zero surviving faults is a pass; one or more is a
+fail with the reproduction.
+"""
+
+acceptance = "Every planted fault in the changed behavior was caught by an existing test; no fault survived green."
+verify_profile = "change"

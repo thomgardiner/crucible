@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "crucible",
+  "description": "Keep coding agents honest about testing. A green suite is not proof.",
+  "owner": {
+    "name": "Thomas Gardiner",
+    "url": "https://github.com/thomgardiner"
+  },
+  "plugins": [
+    {
+      "name": "crucible",
+      "description": "Prove the gates are real (check), the app is real (run), and the tests actually bite (harden). Skill + slash commands + a Stop-hook nudge; the crucible CLI is the engine.",
+      "source": "./",
+      "category": "testing"
+    }
+  ]
+}

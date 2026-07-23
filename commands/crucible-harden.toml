@@ -1,0 +1,2 @@
+description = "Do the tests actually bite? Diff-scoped mutation testing."
+prompt = "Run `crucible harden` in this repo. For each surviving mutant it reports, write a test that fails under that mutation, then rerun. Do not waive a mutant unless it is provably equivalent, and record the reason in .crucible/mutation-waivers.json. A surviving mutant on changed code means no test checks that behavior."

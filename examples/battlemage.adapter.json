@@ -1,0 +1,19 @@
+{
+  "repo": "battlemage",
+  "charter": ".claude/enforcement/charter.json",
+  "approvals": ".claude/enforcement/approvals.json",
+  "gateRunner": {
+    "command": "grove verify change",
+    "file": "scripts/verify.ps1",
+    "checkerPattern": "node (scripts/check-[a-z-]+\\.mjs)"
+  },
+  "changeToUnits": "tools/test-impact.mjs",
+  "highRiskUnits": ["target", "cybersource", "amazon", "shopify", "samsclub", "fanatics"],
+  "prePush": ".githooks/pre-push",
+  "pinnedConfig": [
+    ".claude/enforcement/adapter.json",
+    ".claude/enforcement/mutation.json",
+    ".claude/enforcement/acceptance.json",
+    ".claude/enforcement/mutation-waivers.json"
+  ]
+}

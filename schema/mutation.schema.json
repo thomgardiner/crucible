@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manaforge.dev/crucible/mutation.schema.json",
+  "title": "Crucible Mutation Recipe",
+  "description": "How to run the repo's diff-scoped mutation tool and read its surviving mutants.",
+  "type": "object",
+  "required": ["cmd"],
+  "properties": {
+    "cmd": { "type": "string", "description": "Command that runs mutation testing scoped to the diff (e.g. cargo-mutants --in-diff), printing surviving mutants." },
+    "cwd": { "type": "string", "description": "Repo-relative working directory. Defaults to the repo root." },
+    "timeoutSec": { "type": "number", "description": "Hard timeout; a timed-out run fails closed (never reads as clean)." },
+    "memoryMb": { "type": "integer", "minimum": 1, "default": 2048, "description": "Aggregate memory ceiling for the mutation command and its descendants. Exceeding it kills the entire process tree and fails closed." },
+    "base": { "type": "string", "description": "Git base to diff against for the high-risk tier decision. Defaults to origin/master." },
+    "survivorPattern": {
+      "type": "string",
+      "description": "Regex over the tool output; group 1=file, 2=line, 3=mutation description. Defaults to cargo-mutants MISSED lines. Override for Stryker or another tool."
+    }
+  },
+  "$comment": "The equivalent-mutant escape valve lives in .crucible/mutation-waivers.json: an array of { file, line?, mutation?, reason, approvedBy? }. A waiver must carry a reason, so 'everything is equivalent' cannot silently pass."
+}

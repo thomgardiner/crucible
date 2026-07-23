@@ -1,0 +1,8 @@
+[package]
+name = "crucible-proof-crate"
+version = "0.0.0"
+edition = "2021"
+# A deliberately tiny crate with a reward-hacked test, used to capture real
+# cargo-mutants output (test/fixtures/cargo-mutants-real.txt) and to demo the
+# mutation gate end-to-end. Not part of any workspace.
+[workspace]
