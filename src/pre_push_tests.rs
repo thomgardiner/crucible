@@ -6,8 +6,12 @@ use std::process::Command;
 
 #[test]
 fn hook_runs_crucible_check_accepts_active_invocations() {
-    assert!(hook_runs_crucible_check("#!/bin/sh\ncrucible check || exit 1\n"));
-    assert!(hook_runs_crucible_check("  /usr/local/bin/crucible check --repo .\n"));
+    assert!(hook_runs_crucible_check(
+        "#!/bin/sh\ncrucible check || exit 1\n"
+    ));
+    assert!(hook_runs_crucible_check(
+        "  /usr/local/bin/crucible check --repo .\n"
+    ));
     assert!(!hook_runs_crucible_check("# crucible check\n"));
     assert!(!hook_runs_crucible_check("// crucible check\n"));
     assert!(!hook_runs_crucible_check("echo crucible is great\n"));
@@ -20,15 +24,21 @@ fn inert_pre_push_wiring_does_not_count_as_running_check() {
     assert!(!hook_runs_crucible_check("crucible check || true\n"));
     assert!(!hook_runs_crucible_check("crucible check ||:\n"));
     assert!(!hook_runs_crucible_check("crucible check || exit 0\n"));
-    assert!(!hook_runs_crucible_check("if false; then crucible check; fi\n"));
+    assert!(!hook_runs_crucible_check(
+        "if false; then crucible check; fi\n"
+    ));
     assert!(!hook_runs_crucible_check("false && crucible check\n"));
     assert!(!hook_runs_crucible_check("echo crucible check\n"));
     assert!(!hook_runs_crucible_check("printf '%s\\n' crucible check\n"));
     // Still load-bearing when failure aborts the hook.
     assert!(hook_runs_crucible_check("crucible check || exit 1\n"));
-    assert!(hook_runs_crucible_check("  /usr/local/bin/crucible check --repo .\n"));
+    assert!(hook_runs_crucible_check(
+        "  /usr/local/bin/crucible check --repo .\n"
+    ));
     // Logging then invoking is still real.
-    assert!(hook_runs_crucible_check("echo starting && crucible check || exit 1\n"));
+    assert!(hook_runs_crucible_check(
+        "echo starting && crucible check || exit 1\n"
+    ));
 }
 
 #[test]
@@ -48,7 +58,8 @@ fn verify_pre_push_rejects_swallowed_exit_status() {
     .unwrap();
     let f = verify_pre_push(root, &adapter);
     assert!(
-        f.iter().any(|m| m.contains("does not run") || m.contains("inert")),
+        f.iter()
+            .any(|m| m.contains("does not run") || m.contains("inert")),
         "{f:?}"
     );
 }

@@ -66,10 +66,7 @@ fn check_or_cover_alone_does_not_satisfy_the_stop_nudge() {
         "cover-only must not clear the Stop nudge"
     );
     write_receipt(dir.path(), "harden");
-    assert!(
-        verified_recently(dir.path()),
-        "harden clears the nudge"
-    );
+    assert!(verified_recently(dir.path()), "harden clears the nudge");
 }
 
 #[test]
@@ -238,11 +235,7 @@ fn an_expired_receipt_is_not_fresh() {
     std::fs::create_dir_all(p.parent().unwrap()).unwrap();
     // Timestamp just past the window, current (empty, non-git) tree fingerprint.
     let then = now_secs() - RECEIPT_MAX_AGE_SECS - 1;
-    std::fs::write(
-        &p,
-        format!("CRUCIBLE-RECEIPT-v1\nrun\n{then}\n\n"),
-    )
-    .unwrap();
+    std::fs::write(&p, format!("CRUCIBLE-RECEIPT-v1\nrun\n{then}\n\n")).unwrap();
     assert!(
         !receipt_fresh(dir.path(), "run"),
         "expired must not be fresh"

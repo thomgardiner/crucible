@@ -121,7 +121,12 @@ pub fn hook_runs_crucible_check(text: &str) -> bool {
 /// hook does not actually run `crucible check`.
 pub fn verify_pre_push(repo_root: &Path, adapter: &Adapter) -> Vec<String> {
     let mut failures = vec![];
-    let Some(rel) = adapter.pre_push.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
+    let Some(rel) = adapter
+        .pre_push
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
         failures.push(
             "adapter.prePush is required — independence is enforced at pre-push, so the \
              adapter must name a hook file that runs `crucible check` (see POSITIONING.md)"
@@ -169,11 +174,7 @@ pub fn hooks_path_status(repo_root: &Path, adapter: &Adapter) -> Option<String> 
         return Some(format!(
             "git core.hooksPath is unset — run `git config core.hooksPath {}` so \"{rel}\" fires on push",
             path.parent()
-                .map(|p| p
-                    .strip_prefix(repo_root)
-                    .unwrap_or(p)
-                    .display()
-                    .to_string())
+                .map(|p| p.strip_prefix(repo_root).unwrap_or(p).display().to_string())
                 .unwrap_or_else(|| ".githooks".into())
         ));
     };
@@ -246,7 +247,10 @@ fn git_pathspec(repo_root: &Path, rel: &str) -> Option<String> {
 /// On a shallow clone, `git show --name-only HEAD` lists the whole tree (no parent
 /// available), which false-positives this audit. Prefer parent..commit; when the
 /// parent is missing, only treat a non-shallow root commit as introducing every path.
-fn commit_changed_paths(repo_root: &Path, commit: &str) -> Option<std::collections::HashSet<String>> {
+fn commit_changed_paths(
+    repo_root: &Path,
+    commit: &str,
+) -> Option<std::collections::HashSet<String>> {
     let parent = format!("{commit}^");
     let names = if git_stdout(repo_root, &["rev-parse", "--verify", &parent]).is_some() {
         git_stdout(

@@ -381,7 +381,11 @@ fn harden_does_not_treat_a_clean_caught_run_as_unviable() {
     // Positive control for the unviable gate: a real "all caught" summary must pass.
     let out = "Found 2 mutants to test\nok       Unmutated baseline\n2 mutants tested: 0 missed, 2 caught\n";
     let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
-    assert_eq!(r.verdict, "pass", "clean caught run must not hit unviable gate: {:?}", r.error);
+    assert_eq!(
+        r.verdict, "pass",
+        "clean caught run must not hit unviable gate: {:?}",
+        r.error
+    );
     assert!(r.error.is_none());
     assert!(r.report.is_empty());
 }

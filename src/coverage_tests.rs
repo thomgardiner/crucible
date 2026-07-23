@@ -133,7 +133,11 @@ fn test_paths_are_not_forced_into_the_coverage_floor() {
 #[test]
 fn compiler_generated_closures_are_not_reported_as_untested_functions() {
     let lcov = "SF:src/pay.rs\nFN:1,charge\nFNDA:1,charge\nFN:2,crucible::pay::{closure#0}\nFNDA:0,crucible::pay::{closure#0}\nend_of_record\n";
-    let r = cover(&parse_lcov(lcov), &changed(&["src/pay.rs"]), &["pay".into()]);
+    let r = cover(
+        &parse_lcov(lcov),
+        &changed(&["src/pay.rs"]),
+        &["pay".into()],
+    );
     assert!(
         r.untested.is_empty(),
         "closure FN records must not block: {:?}",

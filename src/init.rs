@@ -171,7 +171,10 @@ fn ensure_hooks_path(repo_root: &Path) -> Option<String> {
         .output()
         .ok()
         .filter(|o| o.status.success())?;
-    if !String::from_utf8_lossy(&ok.stdout).trim().eq_ignore_ascii_case("true") {
+    if !String::from_utf8_lossy(&ok.stdout)
+        .trim()
+        .eq_ignore_ascii_case("true")
+    {
         return None;
     }
     let existing = Command::new("git")

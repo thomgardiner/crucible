@@ -13,7 +13,6 @@
 
 mod admission;
 mod approve;
-mod pre_push;
 mod cgroup;
 mod charter;
 mod config;
@@ -25,6 +24,7 @@ mod hook;
 mod init;
 mod mask;
 mod mutation;
+mod pre_push;
 mod proc;
 mod reality;
 mod smells;
@@ -347,9 +347,7 @@ fn certifies(repo_root: &Path, custom_recipe: bool, arm: &str) -> bool {
                 }
             }
             Err(e) => {
-                eprintln!(
-                    "Crucible {arm}: could not load gate config — NOT certified: {e}"
-                );
+                eprintln!("Crucible {arm}: could not load gate config — NOT certified: {e}");
                 return false;
             }
         }
@@ -654,8 +652,9 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
     let lcov_text = match &recipe.lcov_path {
         Some(p) => {
             let path = repo_root.join(p);
-            let meta = std::fs::metadata(&path)
-                .with_context(|| format!("reading LCOV at {p} (did the coverage command write it?)"))?;
+            let meta = std::fs::metadata(&path).with_context(|| {
+                format!("reading LCOV at {p} (did the coverage command write it?)")
+            })?;
             // Reject a report that predates this run (stale file left on disk). Allow 2s
             // of filesystem mtime skew so coarse timestamps do not false-fail.
             if let Ok(mtime) = meta.modified() {
@@ -667,8 +666,7 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
                     );
                 }
             }
-            std::fs::read_to_string(&path)
-                .with_context(|| format!("reading LCOV at {p}"))?
+            std::fs::read_to_string(&path).with_context(|| format!("reading LCOV at {p}"))?
         }
         None => out.output,
     };

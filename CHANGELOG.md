@@ -1,5 +1,8 @@
 # Changelog
 
+All notable changes to Crucible are documented here. Crucible follows semantic
+versioning.
+
 ## 0.1.0 — 2026-07-23
 
 First public release. A single Rust binary that sits on top of your existing test

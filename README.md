@@ -1,14 +1,50 @@
-# Crucible
+# crucible
 
-Crucible sits on top of the tests you already run. It does not replace `cargo test`,
-Vitest, or Playwright. It answers a narrower question: **did this change get verified
-in ways a green unit suite alone can miss?**
+Honesty layer for the tests you already run. Crucible does not replace
+`cargo test`, Vitest, or Playwright. It answers a narrower question: **did this
+change get verified in ways a green unit suite alone can miss?** That matters
+when most of the code (and many of the tests) come from coding agents.
 
-That matters when most of the code (and many of the tests) come from coding agents.
-A suite can pass while asserting nothing useful, while the app fails to boot, or while
-a gate that should have blocked the change was never wired.
+## Install
 
-## What it checks
+macOS or Linux:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+$ErrorActionPreference = "Stop"
+irm https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.ps1 | iex
+```
+
+The installer verifies the release checksum and also installs `crucible-update`.
+Source install: `cargo install --git https://github.com/thomgardiner/crucible --locked`.
+Optional Claude Code / Codex skill: see [after-install.md](after-install.md).
+Full walkthrough: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
+
+## Use
+
+```sh
+cd your-project
+crucible init                              # scaffold + smoke gate + pre-push
+crucible approve smoke --by "$USER"        # gates first (rewrites charter)
+crucible approve __config__ --by "$USER"   # separate commit from config
+crucible doctor && crucible check
+```
+
+Day to day:
+
+```sh
+crucible test-smells path/to/tests
+crucible check
+crucible run          # needs acceptance.json filled
+crucible cover        # needs coverage recipe + a dirty diff
+crucible harden       # needs mutation recipe + a dirty diff
+```
 
 | Command | Question |
 | --- | --- |
@@ -19,85 +55,25 @@ a gate that should have blocked the change was never wired.
 | `crucible flake` | Is the suite deterministic across identical runs? |
 | `crucible test-smells` | Are there hollow tests (no assert, tautologies, silent skips)? |
 
-Use the arms that match the risk of the change. A docs-only edit is not a checkout
-path; money and auth code should not ship on “tests passed” alone.
+Use the arms that match the risk of the change. `harden` and `cover` are
+change-scoped: on a clean tree they refuse to certify (nothing to measure).
 
-## Why this helps
+Exit codes: 0 success, 1 domain refusal (gate red, hollow verification), 2
+usage or infrastructure error.
 
-These failures are common and easy to miss in a normal green CI:
+## How it works
 
-- Tests that run code but never assert (or only `assert!(true)`).
-- A green suite while the app panics on startup.
-- A never-called function in high-risk code that no test touches.
-- A gate weakened or left unwired so the rule never fires.
-- A “verified” claim based only on gate wiring, not a real test or boot.
+- Sits on top of your existing suite; fails closed when verification is hollow.
+- Catches green suites that never assert, apps that panic on boot, never-called
+  high-risk code, unwired or weakened gates, and “verified” claims that only
+  checked wiring.
+- Contrast proofs live under `cargo test --test proof` — table and how to
+  reproduce them: [docs/PROOFS.md](docs/PROOFS.md).
+- A Claude Code / Codex skill under `skills/crucible/` steers agents to the same
+  CLI; CI and pre-push remain the backstop.
 
-Crucible fails closed on those cases. The claims are exercised on every
-`cargo test --test proof` — short table and how to reproduce them live in
-[docs/PROOFS.md](docs/PROOFS.md).
+More: [docs/](docs/README.md) (adopting, resources, methodology).
 
-## Install
+## License
 
-**CLI (required):**
-
-```sh
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.sh | sh
-```
-
-```powershell
-powershell -ExecutionPolicy ByPass -c \
-  "irm https://github.com/thomgardiner/crucible/releases/latest/download/crucible-installer.ps1 | iex"
-```
-
-```sh
-# From a source checkout
-cargo install --locked --path .
-crucible --version
-```
-
-**Optional:** install this repo as a Claude Code / Codex plugin for the skill and
-Stop nudge (`after-install.md` after install). The CLI is still required on PATH.
-
-## Setup (one repo)
-
-```sh
-cd your-project
-crucible init                 # scaffold + smoke gate + pre-push; sets hooksPath if unset
-crucible approve smoke --by "$USER"    # gates first (rewrites charter)
-crucible approve __config__ --by "$USER"
-# Commit approvals separately from the config files.
-crucible doctor && crucible check
-```
-
-Then fill recipe TODOs in `.crucible/acceptance.json` (and mutation/coverage/flake
-as needed) and set `highRiskUnits`. Full walkthrough:
-[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
-
-## Day-to-day
-
-```sh
-crucible test-smells path/to/tests
-crucible check
-crucible run          # needs acceptance.json filled
-crucible cover        # needs coverage recipe + a dirty diff
-crucible harden       # needs mutation recipe + a dirty diff
-```
-
-`harden` and `cover` are **change-scoped**. On a clean tree they refuse to certify
-(nothing to measure) — intentional.
-
-## Agents
-
-A Claude Code / Codex skill ships under `skills/crucible/`. It steers agents to run
-the same CLI before calling a change “tested.” CI and pre-push remain the backstop.
-
-## Development
-
-```sh
-cargo test
-cargo clippy --all-targets -- -D warnings
-```
-
-This repository uses Crucible on itself (`.crucible/`). Heavy arms are concurrency-
-and memory-bounded; details: [docs/RESOURCES.md](docs/RESOURCES.md).
+MIT

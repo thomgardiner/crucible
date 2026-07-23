@@ -51,12 +51,10 @@ fn demo_harden_surfaces_the_survivor() {
         s.contains("Write a test that fails under this mutation"),
         "{s}"
     );
-    let survivors = std::fs::read_to_string(format!("{DEMO}/.crucible/survivors.json"))
-        .unwrap_or_default();
+    let survivors =
+        std::fs::read_to_string(format!("{DEMO}/.crucible/survivors.json")).unwrap_or_default();
     assert!(
-        survivors.contains("shouldBuy")
-            || survivors.contains("core")
-            || survivors.contains("true"),
+        survivors.contains("shouldBuy") || survivors.contains("core") || survivors.contains("true"),
         "survivors.json must name the live mutant, not be empty: {survivors}"
     );
 }

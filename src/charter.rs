@@ -444,7 +444,9 @@ pub fn check_charter(
     // Independence layer: pre-push must be a verified fact, not an unreadable adapter field.
     failures.extend(crate::pre_push::verify_pre_push(repo_root, adapter));
     // Audit trail: approvals must not hide inside the same commit as the config they bless.
-    failures.extend(crate::pre_push::audit_same_commit_approvals(repo_root, adapter));
+    failures.extend(crate::pre_push::audit_same_commit_approvals(
+        repo_root, adapter,
+    ));
 
     CheckResult { failures, warnings }
 }

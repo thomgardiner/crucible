@@ -264,10 +264,7 @@ fn proof_check_green_on_honest_gate_and_fails_on_every_weakening() {
         crucible(&["check"], root).status.success(),
         "the honest gate passes"
     );
-    assert!(
-        receipt.exists(),
-        "honest check must mint a check receipt"
-    );
+    assert!(receipt.exists(), "honest check must mint a check receipt");
 
     // Message alone is not enough: a warn-and-pass check would still "catch" every
     // attack below if we only searched stderr. Exit must be non-zero each time.
@@ -663,7 +660,11 @@ fn proof_cover_blocks_never_called_high_risk_function() {
     git_init(root);
     fs::create_dir_all(root.join(".crucible")).unwrap();
     fs::create_dir_all(root.join("src")).unwrap();
-    fs::write(root.join("src/pay.rs"), "pub fn charge() {}\npub fn refund() {}\n").unwrap();
+    fs::write(
+        root.join("src/pay.rs"),
+        "pub fn charge() {}\npub fn refund() {}\n",
+    )
+    .unwrap();
     fs::write(
         root.join(".crucible/adapter.json"),
         r#"{"repo":"proof","highRiskUnits":["pay"]}"#,
@@ -728,7 +729,11 @@ end_of_record
 
     let out = crucible(&["cover", "--base", "HEAD"], root);
     let s = combined(&out);
-    assert_ne!(out.status.code(), Some(0), "never-called high-risk must block: {s}");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "never-called high-risk must block: {s}"
+    );
     assert!(
         s.contains("charge") || s.contains("never"),
         "must name the never-called function: {s}"
@@ -899,12 +904,19 @@ fn proof_zero_mutants_refuses_to_certify() {
 
     let out = crucible(&["harden"], root);
     let s = combined(&out);
-    assert_ne!(out.status.code(), Some(0), "zero mutants must not pass: {s}");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "zero mutants must not pass: {s}"
+    );
     assert!(
         s.contains("0 mutants") || s.contains("nothing was mutated"),
         "must name zero-mutant refusal: {s}"
     );
-    assert!(!receipt.exists(), "zero-mutant harden must not mint a receipt");
+    assert!(
+        !receipt.exists(),
+        "zero-mutant harden must not mint a receipt"
+    );
 }
 
 // PROOF 12 — live contrast on the committed mutation-crate: cargo test green,
@@ -965,8 +977,7 @@ fn proof_live_mutation_crate_cargo_test_green_harden_blocks() {
         s.contains("should_buy") || s.contains("true"),
         "must name the reward-hack survivor: {s}"
     );
-    let survivors =
-        fs::read_to_string(root.join(".crucible/survivors.json")).unwrap_or_default();
+    let survivors = fs::read_to_string(root.join(".crucible/survivors.json")).unwrap_or_default();
     assert!(
         survivors.contains("should_buy") || survivors.contains("lib.rs"),
         "survivors.json material: {survivors}"
@@ -1017,7 +1028,11 @@ fn proof_stale_lcov_cannot_certify_cover() {
             .unwrap()
             .success()
     );
-    fs::write(root.join("src/pay.rs"), "pub fn charge() { /* change */ }\n").unwrap();
+    fs::write(
+        root.join("src/pay.rs"),
+        "pub fn charge() { /* change */ }\n",
+    )
+    .unwrap();
     // Age past the 2s skew: LCOV mtime is now; sleep so the cover run starts later.
     std::thread::sleep(std::time::Duration::from_secs(3));
 

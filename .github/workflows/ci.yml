@@ -1,10 +1,17 @@
 # Lightweight verification on every push/PR. Release artifacts stay on release.yml (tags).
-name: CI
+name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -15,12 +22,16 @@ jobs:
           # Full history: same-commit approval audit needs parents of HEAD.
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all -- --check
       - name: Test
         run: cargo test --locked
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --locked -- -D warnings
       - name: Self-check
         run: |
           cargo build --locked
