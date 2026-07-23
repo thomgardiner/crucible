@@ -349,3 +349,52 @@ fn harden_refuses_to_certify_when_zero_mutants_were_tested() {
         "must refuse empty mutation scope"
     );
 }
+
+#[test]
+fn harden_refuses_to_certify_when_every_mutant_is_unviable() {
+    // Unviable-only is not "tests bit" — nothing executed under mutation.
+    let out = "Found 1 mutant to test\nok       Unmutated baseline\n1 mutant tested in 1s: 1 unviable\n WARN No mutants were viable\n";
+    let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
+    assert_eq!(r.verdict, "block");
+    assert!(
+        r.error.unwrap().contains("no viable mutants"),
+        "must refuse all-unviable"
+    );
+}
+
+#[test]
+fn harden_refuses_unviable_summary_without_the_warn_banner() {
+    // Second branch of the unviable gate: summary says unviable, no MISSED/caught,
+    // even when cargo-mutants omits the "No mutants were viable" banner.
+    let out = "Found 2 mutants to test\nok       Unmutated baseline\n2 mutants tested in 3s: 2 unviable\n";
+    let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
+    assert_eq!(r.verdict, "block");
+    assert!(
+        r.error.as_ref().unwrap().contains("no viable mutants"),
+        "{:?}",
+        r.error
+    );
+}
+
+#[test]
+fn harden_does_not_treat_a_clean_caught_run_as_unviable() {
+    // Positive control for the unviable gate: a real "all caught" summary must pass.
+    let out = "Found 2 mutants to test\nok       Unmutated baseline\n2 mutants tested: 0 missed, 2 caught\n";
+    let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
+    assert_eq!(r.verdict, "pass", "clean caught run must not hit unviable gate: {:?}", r.error);
+    assert!(r.error.is_none());
+    assert!(r.report.is_empty());
+}
+
+#[test]
+fn harden_does_not_treat_mixed_caught_and_unviable_as_all_unviable() {
+    // Some unviable + some caught, no MISSED lines: still a real test run. The
+    // `caught || MISSED` early-exit must stay OR — an && mutant would block this.
+    let out = "Found 3 mutants to test\nok       Unmutated baseline\n3 mutants tested: 0 missed, 1 caught, 2 unviable\n";
+    let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
+    assert_eq!(
+        r.verdict, "pass",
+        "mixed caught+unviable must pass: {:?}",
+        r.error
+    );
+}

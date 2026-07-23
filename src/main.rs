@@ -524,14 +524,14 @@ fn run_recipe_command(
 // ---- coverage floor -------------------------------------------------------
 
 // A failed diff (bad base, not a repo) must be an error, not an empty set: an empty set
-// scopes the floor to nothing, which reads as fully covered (Codex round 4). A successful
-// diff with no output is genuinely "no changes" and stays Ok(empty). Untracked files are
-// part of the change too — `git diff` cannot see a brand-new file, which is exactly the
-// least-tested code (Codex round 5).
+// scopes the floor to nothing, which reads as fully covered. A successful diff with no
+// output is genuinely "no changes" and stays Ok(empty). Untracked files are part of the
+// change too — `git diff` cannot see a brand-new file, which is exactly the least-tested
+// code. When `--repo` is a subdirectory of a larger git worktree, only paths under that
+// adoption root count (monorepo dirt outside the demo must not flip high-risk scoping).
 fn changed_files(repo_root: &Path, base: &str) -> Result<HashSet<String>> {
     // Diff-discovery runs BEFORE the machine-wide slot is acquired, so a hung or hostile
-    // git (a filesystem lock, a credential prompt, an infinite hook) must not hang Crucible
-    // outside every resource cap. Bound it with a hard timeout + whole-process-group kill.
+    // git must not hang Crucible outside every resource cap.
     let run = |args: &[&str]| -> Result<Vec<String>> {
         let out =
             proc::run_program_bounded("git", args, repo_root, std::time::Duration::from_secs(60))
@@ -556,7 +556,36 @@ fn changed_files(repo_root: &Path, base: &str) -> Result<HashSet<String>> {
         .into_iter()
         .collect();
     files.extend(run(&["ls-files", "--others", "--exclude-standard"])?);
-    Ok(files)
+
+    // Git prints paths relative to the worktree root, not to `--repo`. Scope and re-root.
+    let toplevel = run(&["rev-parse", "--show-toplevel"])?
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    if toplevel.is_empty() {
+        return Ok(files);
+    }
+    let top = PathBuf::from(toplevel.trim());
+    let repo_abs = repo_root
+        .canonicalize()
+        .unwrap_or_else(|_| repo_root.to_path_buf());
+    let top_abs = top.canonicalize().unwrap_or(top);
+    let Ok(rel_root) = repo_abs.strip_prefix(&top_abs) else {
+        return Ok(files); // repo_root is not inside this worktree — leave paths alone
+    };
+    if rel_root.as_os_str().is_empty() {
+        return Ok(files); // adoption root is the git root
+    }
+    let pref = rel_root.to_string_lossy().replace('\\', "/");
+    let pref = pref.trim_start_matches("./");
+    let mut scoped = HashSet::new();
+    for f in files {
+        let f = f.replace('\\', "/");
+        if let Some(rest) = f.strip_prefix(&format!("{pref}/")) {
+            scoped.insert(rest.to_string());
+        }
+    }
+    Ok(scoped)
 }
 
 fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) -> Result<u8> {

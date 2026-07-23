@@ -108,6 +108,41 @@ fn source_files_unmatched_even_when_lcov_only_mentions_another_language() {
 }
 
 #[test]
+fn test_paths_are_not_forced_into_the_coverage_floor() {
+    // Each suite convention must be excluded on its own (not only via a fragile OR chain).
+    for path in [
+        "src/hook_tests.rs",
+        "src/foo_test.rs",
+        "app/pay.test.ts",
+        "app/pay.test.tsx",
+        "app/pay.test.js",
+        "app/pay.spec.ts",
+        "app/pay.spec.js",
+        "tests/proof.rs",
+        "frontend/tests/unit/x.ts",
+    ] {
+        assert!(
+            !is_source_path(path),
+            "test path must stay out of unmatched floor: {path}"
+        );
+    }
+    assert!(is_source_path("src/hook.rs"));
+    assert!(is_source_path("src/pay.ts"));
+}
+
+#[test]
+fn compiler_generated_closures_are_not_reported_as_untested_functions() {
+    let lcov = "SF:src/pay.rs\nFN:1,charge\nFNDA:1,charge\nFN:2,crucible::pay::{closure#0}\nFNDA:0,crucible::pay::{closure#0}\nend_of_record\n";
+    let r = cover(&parse_lcov(lcov), &changed(&["src/pay.rs"]), &["pay".into()]);
+    assert!(
+        r.untested.is_empty(),
+        "closure FN records must not block: {:?}",
+        r.untested
+    );
+    assert_eq!(r.verdict, "pass");
+}
+
+#[test]
 fn matched_records_without_function_data_are_not_function_coverage() {
     // Codex round 3: `SF:` + `DA:` with no `FN:` records made "every changed function is
     // exercised" vacuously true. The report exposes the evidence counts so the CLI can

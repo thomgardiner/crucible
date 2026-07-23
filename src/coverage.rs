@@ -216,7 +216,13 @@ fn extension(path: &str) -> Option<&str> {
 
 /// Extensions we treat as code that coverage tools should see. Kept deliberately
 /// broad; non-source paths (md, json, toml) are not forced into the floor.
+/// Test sources themselves are the suite, not the product under the floor — a
+/// coverage reporter often folds `#[path = "foo_tests.rs"]` into the parent SF.
 fn is_source_path(path: &str) -> bool {
+    let norm = path.replace('\\', "/");
+    if is_test_path(&norm) {
+        return false;
+    }
     matches!(
         extension(path).map(|e| e.to_ascii_lowercase()).as_deref(),
         Some(
@@ -225,6 +231,37 @@ fn is_source_path(path: &str) -> bool {
                 | "rb" | "php" | "cs" | "fs" | "scala" | "clj" | "ex" | "exs" | "zig" | "nim"
         )
     )
+}
+
+fn is_test_path(norm: &str) -> bool {
+    let base = norm.rsplit('/').next().unwrap_or(norm);
+    // Early returns — a single `||`→`&&` flip must not reclassify one convention.
+    if base.ends_with("_tests.rs") {
+        return true;
+    }
+    if base.ends_with("_test.rs") {
+        return true;
+    }
+    if base.ends_with(".test.ts") || base.ends_with(".test.tsx") || base.ends_with(".test.js") {
+        return true;
+    }
+    if base.ends_with(".spec.ts") || base.ends_with(".spec.js") {
+        return true;
+    }
+    if norm.contains("/tests/") || norm.starts_with("tests/") {
+        return true;
+    }
+    false
+}
+
+fn is_compiler_generated_fn(name: &str) -> bool {
+    if name.contains("::{closure") {
+        return true;
+    }
+    if name.contains("{{closure}}") {
+        return true;
+    }
+    false
 }
 
 // Restrict coverage to the changed files. A never-called function blocks (in a high-risk
@@ -261,6 +298,12 @@ pub fn cover(files: &[FileCov], changed: &HashSet<String>, high_risk: &[String])
             untested_branch_lines.push((fc.file.clone(), *l));
         }
         for f in &fc.functions {
+            // Compiler-generated closures show up as zero-hit FN records under
+            // llvm-cov even when the enclosing function is exercised; they are not
+            // agent-authored surface the floor is meant to name.
+            if is_compiler_generated_fn(&f.name) {
+                continue;
+            }
             if f.hits == 0 && seen.insert((fc.file.clone(), f.name.clone())) {
                 untested.push(Untested {
                     file: fc.file.clone(),

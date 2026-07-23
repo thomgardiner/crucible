@@ -19,17 +19,20 @@ Agents lie that tests passed. Ship only if the default path makes that expensive
 - [x] Receipt magic + full-content tree fingerprint; adopted+no-git fail-closed
 - [x] Cover source-ext unmatched even when LCOV is other-language-only
 - [x] prePush pinned in judge config; doctor hooksPath soft check
+- [x] Full self-adoption: Crucible dogfoods itself (check/run/harden/cover/flake)
 - [ ] Optional later: `harden-accept`, `orient`, full Battlemage required-lane wiring
 
 ## Release mechanics
 
-1. `cargo test` green (unit + proof + demo + benchmark + cli)
-2. `examples/demo` demo.sh still tells the three-arm story
-3. CHANGELOG: move Unreleased → `## 0.1.0` with a date
-4. Tag `v0.1.0` on the five/six-commit history
-5. `cargo-dist` / GitHub release assets if installers stay in README
-6. `git remote add origin …` and first push (no force on empty remote)
-7. Confirm `.gitignore` still hides local harness dirs; no `docs/internal` in tree
+1. [x] `cargo test` green (unit + proof + demo + benchmark + cli) + clippy `-D warnings`
+2. [x] `examples/demo` demo.sh still tells the three-arm story
+3. [x] Detection benchmark: 45/45 hacks caught, 28/28 honest passed
+4. [x] cargo-dist plan + `.github/workflows/release.yml` present
+5. [x] `.gitignore` hides local harness dirs; `docs/internal` ignored
+6. [ ] CHANGELOG: fold Unreleased into `## 0.1.0` with ship date (do at tag time)
+7. [ ] `git remote add origin git@github.com:thomgardiner/crucible.git` (or HTTPS)
+8. [ ] First push of `main` (no force)
+9. [ ] Tag `v0.1.0` and push tag → cargo-dist builds installers on GitHub
 
 ## Explicit non-goals for 0.1.0
 

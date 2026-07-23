@@ -1,0 +1,6 @@
+{
+  "cmd": "sh scripts/coverage.sh",
+  "base": "HEAD",
+  "lcovPath": "target/lcov.info",
+  "memoryMb": 4096
+}

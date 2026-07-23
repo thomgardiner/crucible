@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# Crucible independence layer — do not remove `crucible check`.
+# Approvals must be committed separately from the config they bless.
+set -e
+if command -v crucible >/dev/null 2>&1; then
+  crucible check
+elif [ -x ./target/debug/crucible ]; then
+  ./target/debug/crucible check
+else
+  echo "crucible: not on PATH and no target/debug/crucible — build or install before pushing" >&2
+  exit 1
+fi

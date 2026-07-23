@@ -1,0 +1,26 @@
+{
+  "gates": [
+    {
+      "blockingCondition": "always",
+      "checker": "checks/check-test-smells.sh",
+      "id": "test-smells",
+      "oracleSha256": "aebf1fc69d2f3af31b316e2eefe7489f73f3fcf10c12d298dfd5c1adbf74d201",
+      "rule": "Crucible's own tests and src must not contain test-gaming smells (tautologies, assertion-free, silent skips)",
+      "tier": "T1"
+    },
+    {
+      "blockingCondition": "always",
+      "checker": "checks/check-proof-suite.sh",
+      "id": "proof-suite",
+      "oracleSha256": "f6e5f20e92ee81dfbc30a89d9ec18c6843a2053ba2778069e964feadd6ea014d",
+      "rule": "Empirical proofs, demo, and detection benchmark stay green — the product's falsifiable claims",
+      "tier": "T1"
+    },
+    {
+      "id": "full-suite-in-ci",
+      "reason": "Local pre-push runs the proof/demo/benchmark gate and test-smells; full suite is the CI floor and flake arm, not duplicated as a T1 checker here",
+      "rule": "Full cargo test (unit + integration) on every CI push",
+      "tier": "T3"
+    }
+  ]
+}

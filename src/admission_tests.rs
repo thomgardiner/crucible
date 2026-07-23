@@ -35,6 +35,17 @@ fn a_dropped_slot_is_reusable() {
         let slot = acquire_in(dir.path(), 1, Duration::from_millis(200)).unwrap();
         drop(slot);
     }
+    // Material check: after the cycle the slot is free, and a held slot still serializes.
+    let held = acquire_in(dir.path(), 1, Duration::from_millis(200)).unwrap();
+    assert!(
+        acquire_in(dir.path(), 1, Duration::from_millis(100)).is_err(),
+        "held slot must still serialize"
+    );
+    drop(held);
+    assert!(
+        acquire_in(dir.path(), 1, Duration::from_millis(200)).is_ok(),
+        "drop must free the slot for a later waiter"
+    );
 }
 
 #[test]

@@ -1,0 +1,6 @@
+{
+  "cmd": "sh scripts/mutate-diff.sh HEAD",
+  "base": "HEAD",
+  "memoryMb": 8192,
+  "survivorPattern": "^(?:MISSED|TIMEOUT)\\s+([^\\s:]+):(\\d+)(?::\\d+)?:\\s*(.+)$"
+}

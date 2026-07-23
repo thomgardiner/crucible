@@ -53,7 +53,36 @@ crucible check                    # confirm every gate is honest
 
 `init` is idempotent and never overwrites your config. It scaffolds a pre-push hook that
 runs `crucible check`. Commit each approval **separately** from the config it blesses
-(`check` flags same-commit self-approval at HEAD).
+(`check` flags same-commit self-approval at HEAD). Point git at the hook dir:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+## Dogfood
+
+This repository adopts Crucible on itself. The product under test is the `crucible` binary.
+
+| Arm | What it runs here |
+| --- | --- |
+| `check` | T1 checkers: own `test-smells` + proof/demo/benchmark suite |
+| `run` | build, `--help` boot, doctor/check/test-smells drive oracles |
+| `harden` | diff-scoped `cargo mutants` (unit tests only — nested arms deadlock) |
+| `cover` | `cargo llvm-cov --bins` on the worktree diff |
+| `flake` | `cargo test --bins` twice |
+
+```sh
+cargo build -q
+./target/debug/crucible doctor   # adoption health
+./target/debug/crucible check    # gates honest
+./target/debug/crucible run      # the CLI actually runs
+./target/debug/crucible harden   # tests bite on the current diff
+./target/debug/crucible cover    # changed production functions are executed
+./target/debug/crucible flake    # unit suite is deterministic
+```
+
+`harden` / `cover` are change-scoped: a clean tree fails closed (nothing to mutate /
+empty scope). That is intentional — they prove the *change*, not the whole repo forever.
 
 ## Commands
 

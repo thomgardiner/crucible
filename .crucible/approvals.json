@@ -1,0 +1,125 @@
+[
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T17:48:05Z",
+    "fingerprint": "8caccd8a82011c1f3a6ae212463c2c830a0a0cc869564680116caebb725cc3ab",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T17:48:05Z",
+    "checkerSha256": "aebf1fc69d2f3af31b316e2eefe7489f73f3fcf10c12d298dfd5c1adbf74d201",
+    "fingerprint": "80d37fde25849a0f6ba9db2e946f0e5422314dfc9c5c73ca20572e5fcbc928b3",
+    "gate": "test-smells",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T17:48:05Z",
+    "checkerSha256": "f6e5f20e92ee81dfbc30a89d9ec18c6843a2053ba2778069e964feadd6ea014d",
+    "fingerprint": "7a614ffe277a2206f43efeb27c1e38f2fd01635becf7f9c41cec51469c475680",
+    "gate": "proof-suite",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T17:48:13Z",
+    "fingerprint": "bd4fe478741ab76be51f7d60f3dfdcedbab370d6484b13d832e9f0aab386e044",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T17:48:28Z",
+    "fingerprint": "52c0963ea1cabd41d938870f0563f95aeee970370983c22da38010afc28a684b",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:00:01Z",
+    "fingerprint": "afeee58de6a2049b32349537465ab241a9476694be5eff7dc90ca944373f37dc",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:05:36Z",
+    "fingerprint": "93a8fc12ae4ee844bb235ee92b38a3e1d71df1629deaa032eaea919f1f174af7",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:26:26Z",
+    "fingerprint": "7bce763760d48f96cfd54effb273555d83c18fdc46574f4d3460853dd9855136",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:35:25Z",
+    "fingerprint": "9e263028e2ae74a17ebf71ce041382408f0e1d25796376d3492c9dd3c632faca",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:37:03Z",
+    "fingerprint": "7bce763760d48f96cfd54effb273555d83c18fdc46574f4d3460853dd9855136",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:37:29Z",
+    "fingerprint": "da61cc5de39b9818bdbd8da2ae9f944e9b6537c77be258ff75a9322b35a0955f",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:37:29Z",
+    "fingerprint": "46aa45a195345692dfdf08177b43517a1fdc2e6968da98826b961ee5b68a80b4",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:37:43Z",
+    "fingerprint": "07f5975e69a6b529ca0fdede73114243e064445dd5b739d8a0fed4d2676d8b8e",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:39:58Z",
+    "fingerprint": "4870ec8472144444611ab5d0a87936d809d2154d710455febc5ec7decd03c178",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:46:31Z",
+    "checkerSha256": "aebf1fc69d2f3af31b316e2eefe7489f73f3fcf10c12d298dfd5c1adbf74d201",
+    "fingerprint": "80d37fde25849a0f6ba9db2e946f0e5422314dfc9c5c73ca20572e5fcbc928b3",
+    "gate": "test-smells",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:46:31Z",
+    "checkerSha256": "f6e5f20e92ee81dfbc30a89d9ec18c6843a2053ba2778069e964feadd6ea014d",
+    "fingerprint": "7a614ffe277a2206f43efeb27c1e38f2fd01635becf7f9c41cec51469c475680",
+    "gate": "proof-suite",
+    "note": ""
+  },
+  {
+    "approvedBy": "crucible-maintainer",
+    "at": "2026-07-23T18:46:31Z",
+    "fingerprint": "4870ec8472144444611ab5d0a87936d809d2154d710455febc5ec7decd03c178",
+    "gate": "__config__",
+    "note": ""
+  }
+]

@@ -44,6 +44,25 @@ fn mutants_found_count(output: &str) -> Option<u64> {
         .and_then(|c| c.get(1)?.as_str().parse().ok())
 }
 
+/// True when the mutation tool ran but every mutant was unviable — nothing tested
+/// whether tests bite. Early-return shape so a single `&&`/`||` flip cannot turn a
+/// clean "all caught" summary into a false unviable block.
+fn all_unviable(output: &str, survivors_empty: bool) -> bool {
+    if output.contains("No mutants were viable") {
+        return true;
+    }
+    if !survivors_empty {
+        return false;
+    }
+    if !output.contains("unviable") {
+        return false;
+    }
+    if output.contains("caught") || output.contains("MISSED") {
+        return false;
+    }
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Survivor {
     pub file: String,
@@ -263,6 +282,13 @@ pub fn run_harden(
         return blocked(
             "0 mutants tested — that is not proof tests bite, it is proof nothing was mutated \
              (empty diff scope, wrong package filter, or non-mutatable files only). Refuse to certify.",
+        );
+    }
+    // All mutants unviable (won't compile / won't run) is also not proof tests bite.
+    if all_unviable(&out.output, survivors.is_empty()) {
+        return blocked(
+            "no viable mutants survived the scratch build — nothing was tested for whether \
+             tests bite. Fix the mutate environment or widen the diff; refuse to certify.",
         );
     }
 

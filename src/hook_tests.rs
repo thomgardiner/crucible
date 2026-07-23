@@ -139,6 +139,10 @@ fn stop_never_loops_when_already_active() {
 fn unknown_event_and_garbage_input_are_noops() {
     assert_eq!(run_hook("whatever", "{}").stdout, "");
     assert_eq!(run_hook("stop", "not json").stdout, "");
+    // Empty JSON is parseable but has no cwd — uses process cwd. When that cwd is
+    // this adopted repo with dirty work, Stop may block; that is intentional for a
+    // real TUI payload. Garbage non-JSON must never block (safe no-op).
+    assert_eq!(run_hook("stop", "{not json").stdout, "");
 }
 
 #[test]

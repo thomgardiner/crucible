@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Contrast proofs (7–13):** hollow tests green under `cargo test` but fail
+  `test-smells`; never-called high-risk fn blocks cover; check-only and forged
+  receipts do not clear Stop; zero-mutants and stale LCOV refuse certify; live
+  mutation-crate cargo-green vs harden-block. Documented in PROOFS.md table.
+- **Self-adoption:** this repository is a full Crucible customer — `.crucible/`,
+  gate runner, pre-push, and real recipes for check/run/harden/cover/flake.
+- **Dogfood fixes:** unparsable Stop payloads are a true no-op; all-unviable
+  mutation runs refuse to certify; cover ignores test paths and compiler closures;
+  flake/harden/cover recipes use unit tests only so nested heavy arms cannot
+  deadlock the admission gate.
+- **Meta-proof honesty:** gate-attack proofs require exit ≠ 0 (not message-only);
+  demo harden requires fail-closed exit + survivors.json; receipts assert magic header.
+- **Monorepo `--repo`:** diff scoping is limited to the adoption root so sibling dirt
+  cannot demote high-risk survivors to advisory.
 - **Inert pre-push / gate wiring:** `|| true`, `|| exit 0`, `if false`, and `false &&`
   no longer count as load-bearing `crucible check` or checker wiring — same as comments.
 - **Receipts:** magic header + arm + content fingerprint (full stream for files ≤8 MiB;

@@ -221,10 +221,13 @@ fn session_start(repo: &Path) -> HookResult {
 }
 
 // Dispatch a hook event given the raw stdin payload the TUI provides. `cwd` and
-// `stop_hook_active` are read from it; an unparsable payload falls back to the process
-// cwd and a safe no-op.
+// `stop_hook_active` are read from it. Unparsable payload is a safe no-op — never
+// fall back to process cwd for Stop, or adopting the product repo itself would
+// spuriously block every garbage-input path (including our own unit tests).
 pub fn run_hook(event: &str, input: &str) -> HookResult {
-    let v: Value = serde_json::from_str(input).unwrap_or(Value::Null);
+    let Ok(v) = serde_json::from_str::<Value>(input) else {
+        return empty();
+    };
     let cwd = v
         .get("cwd")
         .and_then(|c| c.as_str())

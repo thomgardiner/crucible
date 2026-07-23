@@ -1,0 +1,7 @@
+{
+  "_note": "Unit tests only. Integration tests (proof/demo/benchmark/cli) spawn crucible heavy arms and would deadlock on the machine-wide admission slot held by flake itself.",
+  "cmd": "cargo test -q --bins",
+  "runs": 2,
+  "failPattern": "(?:FAILED|failures:|error\\[E)",
+  "memoryMb": 4096
+}

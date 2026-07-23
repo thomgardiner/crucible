@@ -1,0 +1,49 @@
+{
+  "repo": "crucible",
+  "build": {
+    "cmd": "cargo build -q",
+    "timeoutSec": 600
+  },
+  "boot": {
+    "cmd": "cargo run -q -- --help",
+    "timeoutSec": 120,
+    "oracle": {
+      "stdoutMatch": "crucible",
+      "stdoutForbid": "panicked|thread 'main' panicked"
+    }
+  },
+  "drive": [
+    {
+      "name": "doctor-adopted",
+      "cmd": "cargo run -q -- doctor",
+      "timeoutSec": 120,
+      "oracle": {
+        "stdoutMatch": "charter is honest",
+        "stdoutForbid": ".crucible/ not found"
+      }
+    },
+    {
+      "name": "self-test-smells",
+      "cmd": "cargo run -q -- test-smells tests src",
+      "timeoutSec": 120,
+      "oracle": {
+        "stdoutMatch": "no test-gaming smells found",
+        "stdoutForbid": "SMELL:|test-smells: .* failure"
+      }
+    },
+    {
+      "name": "check-honest",
+      "cmd": "cargo run -q -- check",
+      "timeoutSec": 120,
+      "oracle": {
+        "stdoutMatch": "every gate is honest",
+        "stdoutForbid": "gate violation"
+      }
+    }
+  ],
+  "trust": {
+    "testRoots": ["src", "tests"],
+    "testPattern": "(_tests\\.rs$|/tests/.*\\.rs$)",
+    "mockMarkers": ["mockall", "automock", "mock::"]
+  }
+}
