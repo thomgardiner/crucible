@@ -265,3 +265,98 @@ fn separate_approval_commit_is_clean() {
         "approval-only commit must pass"
     );
 }
+
+#[test]
+fn shallow_clone_without_parent_does_not_false_positive() {
+    // actions/checkout defaults to depth 1; git show HEAD then lists the whole
+    // tree. The audit must not treat that as a live approvals+config co-commit.
+    let src = tempfile::tempdir().unwrap();
+    let root = src.path();
+    assert!(
+        Command::new("git")
+            .args(["init"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let _ = Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(root)
+        .status();
+    let _ = Command::new("git")
+        .args(["config", "user.name", "test"])
+        .current_dir(root)
+        .status();
+
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"gateRunner":{"file":"g","checkerPattern":"(x)"},"pinnedConfig":[".crucible/adapter.json"]}"#,
+    )
+    .unwrap();
+    fs::write(root.join(".crucible/charter.json"), r#"{"gates":[]}"#).unwrap();
+    fs::write(root.join(".crucible/approvals.json"), "[]\n").unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-m", "seed"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("README"), "later\n").unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "README"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-m", "unrelated tip"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+
+    let shallow = tempfile::tempdir().unwrap();
+    let shallow_path = shallow.path().join("clone");
+    assert!(
+        Command::new("git")
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                root.to_str().unwrap(),
+                shallow_path.to_str().unwrap(),
+            ])
+            .status()
+            .unwrap()
+            .success()
+    );
+
+    let adapter: Adapter = serde_json::from_value(json!({
+        "gateRunner": { "file": "g", "checkerPattern": "(x)" },
+        "approvals": ".crucible/approvals.json",
+        "charter": ".crucible/charter.json",
+        "pinnedConfig": [".crucible/adapter.json"],
+    }))
+    .unwrap();
+
+    assert!(
+        audit_same_commit_approvals(&shallow_path, &adapter).is_empty(),
+        "shallow tip without parent must not invent a co-commit"
+    );
+}

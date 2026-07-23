@@ -241,6 +241,46 @@ fn git_pathspec(repo_root: &Path, rel: &str) -> Option<String> {
     Some(stripped.to_string())
 }
 
+/// Paths changed by `commit` relative to its first parent.
+///
+/// On a shallow clone, `git show --name-only HEAD` lists the whole tree (no parent
+/// available), which false-positives this audit. Prefer parent..commit; when the
+/// parent is missing, only treat a non-shallow root commit as introducing every path.
+fn commit_changed_paths(repo_root: &Path, commit: &str) -> Option<std::collections::HashSet<String>> {
+    let parent = format!("{commit}^");
+    let names = if git_stdout(repo_root, &["rev-parse", "--verify", &parent]).is_some() {
+        git_stdout(
+            repo_root,
+            &[
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                &parent,
+                commit,
+            ],
+        )?
+    } else {
+        // No parent: true root, or shallow tip with history cut off.
+        let shallow = git_stdout(repo_root, &["rev-parse", "--is-shallow-repository"])
+            .map(|s| s.trim() == "true")
+            .unwrap_or(false);
+        if shallow {
+            return None;
+        }
+        git_stdout(repo_root, &["ls-tree", "-r", "--name-only", commit])?
+    };
+
+    Some(
+        names
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(|l| l.replace('\\', "/"))
+            .collect(),
+    )
+}
+
 /// Flag when the latest commit that touches the approvals log also changes any
 /// judge-config path. That is a self-approval of a weakening, not an independent
 /// audit trail. Skip when not a git checkout or git is unavailable.
@@ -284,17 +324,10 @@ pub fn audit_same_commit_approvals(repo_root: &Path, adapter: &Adapter) -> Vec<S
         return failures;
     }
 
-    let Some(names) = git_stdout(repo_root, &["show", "--name-only", "--pretty=format:", &commit])
-    else {
+    let Some(changed) = commit_changed_paths(repo_root, &commit) else {
+        // Shallow clone without parent of this commit: cannot evaluate honestly.
         return failures;
     };
-
-    let changed: std::collections::HashSet<String> = names
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .map(|l| l.replace('\\', "/"))
-        .collect();
 
     if !changed.contains(&approvals_spec) {
         return failures;
