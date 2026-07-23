@@ -2,10 +2,6 @@
 
 ## Unreleased
 
-- **Contrast proofs (7–13):** hollow tests green under `cargo test` but fail
-  `test-smells`; never-called high-risk fn blocks cover; check-only and forged
-  receipts do not clear Stop; zero-mutants and stale LCOV refuse certify; live
-  mutation-crate cargo-green vs harden-block. Documented in PROOFS.md table.
 - **Self-adoption:** this repository is a full Crucible customer — `.crucible/`,
   gate runner, pre-push, and real recipes for check/run/harden/cover/flake.
 - **Dogfood fixes:** unparsable Stop payloads are a true no-op; all-unviable
