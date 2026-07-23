@@ -3,6 +3,7 @@
 //! of the pitch, so it has to keep working. Unix-only: the demo app is a sh script.
 #![cfg(unix)]
 
+use std::path::Path;
 use std::process::{Command, Output};
 
 const BIN: &str = env!("CARGO_BIN_EXE_crucible");
@@ -15,6 +16,46 @@ fn crucible(args: &[&str]) -> Output {
         .arg(DEMO)
         .output()
         .unwrap()
+}
+
+/// Seed a local git history so harden can scope B..C (demo ships without a nested .git).
+fn ensure_demo_git() {
+    let demo = Path::new(DEMO);
+    if demo.join(".git").exists() {
+        return;
+    }
+    let git = |args: &[&str]| {
+        assert!(
+            Command::new("git")
+                .args(args)
+                .current_dir(demo)
+                .status()
+                .unwrap()
+                .success(),
+            "git {args:?}"
+        );
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["config", "user.email", "demo@crucible.test"]);
+    git(&["config", "user.name", "demo"]);
+    // Two commits so HEAD~1..HEAD is a real range with high-risk units.
+    git(&["add", "-A"]);
+    git(&["-c", "commit.gpgsign=false", "commit", "-qm", "demo base"]);
+    // Touch core so high-risk "core" is in the tip range when base is HEAD~1.
+    let core = demo.join("app/core.ts");
+    let mut body = std::fs::read_to_string(&core).unwrap();
+    if !body.contains("// scope-pin") {
+        body.push_str("\n// scope-pin\n");
+        std::fs::write(&core, body).unwrap();
+    }
+    git(&["add", "app/core.ts"]);
+    git(&[
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-qm",
+        "core in scope",
+    ]);
 }
 
 #[test]
@@ -38,8 +79,14 @@ fn demo_run_reports_runs() {
 
 #[test]
 fn demo_harden_surfaces_the_survivor() {
-    let o = crucible(&["harden"]);
-    let s = String::from_utf8_lossy(&o.stdout);
+    ensure_demo_git();
+    // Scope against the seed parent so app/core.ts is in B..C high-risk.
+    let o = crucible(&["harden", "--base", "HEAD~1", "--candidate", "HEAD"]);
+    let s = format!(
+        "{}{}",
+        String::from_utf8_lossy(&o.stdout),
+        String::from_utf8_lossy(&o.stderr)
+    );
     // Banner alone is theater: a print-always-exit-0 harden would still pass that.
     assert_ne!(
         o.status.code(),

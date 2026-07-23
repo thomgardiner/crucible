@@ -90,7 +90,7 @@ pub fn starters(repo_name: &str) -> Vec<(&'static str, Value)> {
             "mutation.json",
             json!({
                 "_note": "Diff-scoped mutation for `crucible harden`. Requires a mutation tool on PATH.",
-                "cmd": "TODO e.g. cargo mutants --in-diff HEAD --timeout 120 -j 1 --cargo-test-arg=--bins",
+                "cmd": "TODO e.g. cargo mutants --in-diff {base} --timeout 120 -j 1 --cargo-test-arg=--bins",
                 "base": "HEAD",
                 "memoryMb": 2048,
                 "survivorPattern": "^(?:MISSED|TIMEOUT)\\s+([^\\s:]+):(\\d+)(?::\\d+)?:\\s*(.+)$"

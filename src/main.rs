@@ -453,16 +453,33 @@ fn cmd_harden(
         .unwrap_or_else(|| "origin/master".into());
     let candidate = candidate.unwrap_or_else(|| "HEAD".into());
 
-    // highRiskUnits live on the adapter; harden is usable without one (advisory everywhere).
-    let high_risk = load_json::<Adapter>(&repo_root.join(".crucible/adapter.json"))
+    // Scope B..C before running mutation:
+    // - empty resolved scope → refuse (same as cover)
+    // - unresolvable base (e.g. fresh git with no commits) → fail closed high-risk
+    let high_risk_units = load_json::<Adapter>(&repo_root.join(".crucible/adapter.json"))
         .map(|a| a.high_risk_units)
         .unwrap_or_default();
-    let is_high_risk = changed_hits_high_risk(repo_root, &base, &candidate, &high_risk);
+    let is_high_risk = match changed_files(repo_root, &base, &candidate) {
+        Ok(changed) if changed.is_empty() => {
+            bail!(
+                "no changed files on {base}...{candidate} — harden refuses to certify an empty scope (nothing mutated means nothing was proven)"
+            );
+        }
+        Ok(_) => changed_hits_high_risk(repo_root, &base, &candidate, &high_risk_units),
+        Err(_) => true, // cannot resolve B..C → treat as high-risk (historical fail-closed)
+    };
 
     let cwd = match &recipe.cwd {
         Some(c) => repo_root.join(c),
         None => repo_root.to_path_buf(),
     };
+    // Bind B..C into the recipe via {base}/{candidate} placeholders so the
+    // mutation tool is forced onto the declared range (not only high-risk class).
+    let mut recipe = recipe;
+    recipe.cmd = recipe
+        .cmd
+        .replace("{base}", &base)
+        .replace("{candidate}", &candidate);
     // The mutation run forks a full build/test matrix; hold a machine-wide slot so
     // several sessions do not run cargo-mutants at once and OOM the box.
     let _slot = admission::acquire().map_err(anyhow::Error::msg)?;

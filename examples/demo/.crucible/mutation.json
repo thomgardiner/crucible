@@ -1,1 +1,1 @@
-{ "cmd": "cat mutants-capture.txt", "base": "HEAD" }
+{"cmd":"cat mutants-capture.txt","base":"HEAD~1"}

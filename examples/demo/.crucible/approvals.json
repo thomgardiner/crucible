@@ -65,5 +65,26 @@
     "fingerprint": "86123763a7e4ddf13508ef8d43992a6b3cccc1c8036e65e0628a0c9398c4981f",
     "gate": "__config__",
     "note": ""
+  },
+  {
+    "approvedBy": "demo-maintainer",
+    "at": "2026-07-23T22:41:26Z",
+    "fingerprint": "92aca08df6941aef2150ff5200b72222fab4bf55ca39eb1b79d314830e9d5df2",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-maintainer",
+    "at": "2026-07-23T22:41:43Z",
+    "fingerprint": "94fa475f4ffb0f5842e5d47de823fb0ead15427f6042ec5042416c98a433dc30",
+    "gate": "__config__",
+    "note": ""
+  },
+  {
+    "approvedBy": "demo-maintainer",
+    "at": "2026-07-23T22:42:11Z",
+    "fingerprint": "b5c4d640188c81da1ef1e84a78d97de2b843f9050cea439932204cb6533c2636",
+    "gate": "__config__",
+    "note": ""
   }
 ]

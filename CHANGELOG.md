@@ -9,6 +9,8 @@ versioning.
 
 - `harden` / `cover` accept `--candidate` (tip C, default HEAD) with `--base`
   (B) so arms scope to an explicit B..C range instead of a static HEAD-only view.
+- `harden` expands `{base}` / `{candidate}` into the recipe command and refuses
+  empty B..C scopes (same fail-closed rule as `cover`).
 
 ### Changed
 

@@ -103,3 +103,4 @@ __pycache__/
 # Self-harden debug log (scripts/mutate-diff may write this)
 **/last-mutants.log
 target/last-mutants.log
+examples/demo/.git/
