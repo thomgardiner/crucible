@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0
+## 0.1.0 — 2026-07-23
 
 First public release. A single Rust binary that sits on top of your existing test
 tools and fails closed when verification is hollow or incomplete.
