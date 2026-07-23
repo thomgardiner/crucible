@@ -74,6 +74,11 @@ usage or infrastructure error.
 
 More: [docs/](docs/README.md) (adopting, resources, methodology).
 
+## Assurance
+
+Stack invariants for Grove · Summoner · Crucible: [ASSURANCE.md](ASSURANCE.md)
+(epoch 1). Features that violate an invariant are bugs, not tradeoffs.
+
 ## License
 
 MIT
