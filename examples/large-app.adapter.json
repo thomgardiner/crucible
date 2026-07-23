@@ -1,15 +1,19 @@
 {
-  "repo": "battlemage",
-  "_note": "Reference adapter for a large Rust + Tauri app. Paths use the portable .crucible/ layout; point gateRunner at your real verify entry.",
+  "repo": "my-app",
+  "_note": "Reference adapter for a large multi-crate app. Paths use .crucible/; point gateRunner at your real verify entry.",
   "charter": ".crucible/charter.json",
   "approvals": ".crucible/approvals.json",
   "gateRunner": {
-    "command": "grove verify change",
+    "command": "make verify",
     "file": "scripts/verify.ps1",
     "checkerPattern": "node (scripts/check-[a-z-]+\\.mjs)"
   },
   "changeToUnits": "tools/test-impact.mjs",
-  "highRiskUnits": ["target", "cybersource", "amazon", "shopify", "samsclub", "fanatics"],
+  "highRiskUnits": [
+    "payments",
+    "auth",
+    "checkout"
+  ],
   "prePush": ".githooks/pre-push",
   "pinnedConfig": [
     ".crucible/adapter.json",

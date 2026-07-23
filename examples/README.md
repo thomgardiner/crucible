@@ -1,40 +1,33 @@
 # Examples
 
-Runnable proof that Crucible catches what it claims to. Start with the demo.
+## [demo/](demo) — short tour
 
-## [demo/](demo): the 30-second tour
+Minimal project with Crucible wired in:
 
-A complete tiny project with Crucible wired in. Runs with just Node.
-
-```
+```sh
 cd examples/demo && ./demo.sh
 ```
 
-Watch all three arms in one run: `crucible check` catches a weakened gate,
-`crucible run` catches a boot crash the green test misses, and `crucible harden`
-catches a test that does not constrain behavior.
+Shows `check` catching a weakened gate, `run` catching a boot crash a green unit
+test misses, and `harden` catching a test that does not constrain behavior.
 
-## [proof/mutation-crate/](proof/mutation-crate): the live mutation run
+## [proof/mutation-crate/](proof/mutation-crate) — live mutation
 
-The real reward-hacked Rust crate behind the deterministic proof. With
-`cargo-mutants` installed:
+Reward-hacked Rust crate used by the proof suite. With `cargo-mutants`:
 
-```
+```sh
 cd examples/proof/mutation-crate
-cargo test      # green: 1 passed
-cargo mutants   # real: 1 missed — the green test does not constrain <=
+cargo test      # green
+cargo mutants   # one missed mutant — the green test does not constrain <=
 ```
 
-Add a boundary assertion and `cargo mutants` reports every mutant caught. Both pass
-`cargo test`; only mutation tells them apart.
+## Config shapes
 
-## Config references
-
-`battlemage.*.json` are **portable** adapter / charter / acceptance / mutation shapes for
-a large Rust + Tauri-style app (paths under `.crucible/`). Copy and rename; replace
-commands with your real verify, build, and mutation entry points.
+`large-app.*.json` are portable adapter / charter / acceptance / mutation examples
+for a multi-crate app. Copy, rename, and point commands at your verify/build/mutation
+entry points.
 
 ## See also
 
-- [docs/PROOFS.md](../docs/PROOFS.md): the deterministic proofs (`cargo test --test proof`)
-- [docs/ADOPTING.md](../docs/ADOPTING.md): turning it on in your repo
+- [docs/PROOFS.md](../docs/PROOFS.md) — `cargo test --test proof`
+- [docs/ADOPTING.md](../docs/ADOPTING.md) — adopt in your repo

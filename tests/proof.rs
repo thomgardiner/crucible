@@ -533,3 +533,502 @@ fn proof_crucible_own_tests_have_no_test_gaming_smells() {
         "crucible's own suite must be smell-clean (fix the smell, do not weaken the scanner):\n{s}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Contrast proofs: WITHOUT Crucible these look "done"; WITH Crucible they fail.
+// Each pairs a green-normal signal with a Crucible block + material artifact.
+// ---------------------------------------------------------------------------
+
+fn git_init(root: &Path) {
+    assert!(
+        Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    for (k, v) in [
+        ("user.email", "proof@crucible"),
+        ("user.name", "proof"),
+        ("commit.gpgsign", "false"),
+    ] {
+        let _ = Command::new("git")
+            .args(["config", k, v])
+            .current_dir(root)
+            .status();
+    }
+}
+
+fn hook_stop(repo: &Path) -> Output {
+    let payload = format!(
+        r#"{{"cwd":{},"stop_hook_active":false}}"#,
+        serde_json::to_string(&repo.to_string_lossy()).unwrap()
+    );
+    Command::new(BIN)
+        .args(["hook", "stop"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut c| {
+            use std::io::Write;
+            c.stdin.take().unwrap().write_all(payload.as_bytes())?;
+            c.wait_with_output()
+        })
+        .expect("hook stop")
+}
+
+// PROOF 7 — hollow tests that cargo test would mark green: assertion-free + assert!(true).
+// Normal suite: green. Crucible test-smells: fails closed.
+#[test]
+fn proof_hollow_tests_are_green_under_cargo_but_fail_test_smells() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(
+        root.join("Cargo.toml"),
+        r#"[package]
+name = "hollow"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("src/lib.rs"),
+        r#"
+pub fn add(a: i32, b: i32) -> i32 { a + b }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Looks like a test. Proves nothing.
+    #[test]
+    fn covers_add() {
+        let _ = add(1, 1);
+    }
+
+    // Tautology: always green.
+    #[test]
+    fn always_true() {
+        assert!(true);
+    }
+}
+"#,
+    )
+    .unwrap();
+
+    // WITHOUT Crucible: the suite is green — cargo test is happy.
+    let cargo = Command::new("cargo")
+        .args(["test", "-q"])
+        .current_dir(root)
+        .output()
+        .expect("cargo test");
+    assert_eq!(
+        cargo.status.code(),
+        Some(0),
+        "control: cargo test must pass hollow suite:\n{}",
+        combined(&cargo)
+    );
+
+    // WITH Crucible: test-smells names the gaming (absolute path — not the product tree).
+    let hollow_src = root.join("src");
+    let smells = Command::new(BIN)
+        .arg("test-smells")
+        .arg(&hollow_src)
+        .arg("--repo")
+        .arg(root)
+        .output()
+        .unwrap();
+    let s = combined(&smells);
+    assert_ne!(
+        smells.status.code(),
+        Some(0),
+        "test-smells must fail closed on hollow suite: {s}"
+    );
+    assert!(
+        s.contains("assertion") || s.contains("tautolog") || s.contains("assert!(true)"),
+        "must name the hollow pattern: {s}"
+    );
+}
+
+// PROOF 8 — never-called production function: a green LCOV for *other* symbols would
+// not surface it; cover names it and refuses a receipt.
+#[test]
+fn proof_cover_blocks_never_called_high_risk_function() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(root.join("src/pay.rs"), "pub fn charge() {}\npub fn refund() {}\n").unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"repo":"proof","highRiskUnits":["pay"]}"#,
+    )
+    .unwrap();
+    // LCOV: charge never hit, refund hit — a naive "suite green" story still holds for refund.
+    fs::create_dir_all(root.join("target")).unwrap();
+    fs::write(
+        root.join("target/lcov.info"),
+        "\
+SF:src/pay.rs
+FN:1,charge
+FNDA:0,charge
+FN:2,refund
+FNDA:5,refund
+end_of_record
+",
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/coverage.json"),
+        r#"{"cmd":"true","base":"HEAD","lcovPath":"target/lcov.info"}"#,
+    )
+    .unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-q", "-m", "seed"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    // Dirty change so cover has a non-empty scope.
+    fs::write(
+        root.join("src/pay.rs"),
+        "pub fn charge() { /* changed */ }\npub fn refund() {}\n",
+    )
+    .unwrap();
+    // Refresh LCOV mtime so it is not stale relative to this run.
+    let _ = fs::write(
+        root.join("target/lcov.info"),
+        "\
+SF:src/pay.rs
+FN:1,charge
+FNDA:0,charge
+FN:2,refund
+FNDA:5,refund
+end_of_record
+",
+    );
+
+    let receipt = receipt_path(root, "cover");
+    let _ = fs::remove_file(&receipt);
+
+    let out = crucible(&["cover", "--base", "HEAD"], root);
+    let s = combined(&out);
+    assert_ne!(out.status.code(), Some(0), "never-called high-risk must block: {s}");
+    assert!(
+        s.contains("charge") || s.contains("never"),
+        "must name the never-called function: {s}"
+    );
+    assert!(!receipt.exists(), "blocking cover must not mint a receipt");
+}
+
+// PROOF 9 — check-only verification is not enough to finish dirty work.
+// An agent that only runs `crucible check` still gets blocked on Stop.
+#[cfg(unix)]
+#[test]
+fn proof_check_only_receipt_does_not_clear_stop_nudge() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::write(root.join("a.rs"), "fn a() {}\n").unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-q", "-m", "seed"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    // Dirty work + check-only receipt (minted by a real successful check on a mini harness).
+    fs::write(root.join("a.rs"), "fn a() { /* dirty */ }\n").unwrap();
+
+    // Real check arm on a minimal honest gate so the receipt is written by production code.
+    fs::create_dir_all(root.join("checks")).unwrap();
+    fs::create_dir_all(root.join(".githooks")).unwrap();
+    fs::write(root.join("checks/check-x.sh"), "#!/bin/sh\nexit 0\n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(
+            root.join("checks/check-x.sh"),
+            fs::Permissions::from_mode(0o755),
+        );
+    }
+    fs::write(root.join("run.sh"), "sh checks/check-x.sh\n").unwrap();
+    fs::write(
+        root.join(".githooks/pre-push"),
+        "#!/bin/sh\ncrucible check || exit 1\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"repo":"nudge","charter":".crucible/charter.json","approvals":".crucible/approvals.json","gateRunner":{"file":"run.sh","checkerPattern":"sh (checks/check-[a-z-]+\\.sh)"},"highRiskUnits":["a"],"prePush":".githooks/pre-push","pinnedConfig":[".crucible/adapter.json"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/charter.json"),
+        r#"{"gates":[{"id":"x","rule":"x","tier":"T1","checker":"checks/check-x.sh","blockingCondition":"always"}]}"#,
+    )
+    .unwrap();
+    assert!(
+        crucible(&["approve", "x", "--by", "rev"], root)
+            .status
+            .success()
+    );
+    assert!(
+        crucible(&["approve", "__config__", "--by", "rev"], root)
+            .status
+            .success()
+    );
+    let check = crucible(&["check"], root);
+    assert!(
+        check.status.success(),
+        "check itself must pass: {}",
+        combined(&check)
+    );
+    assert!(
+        receipt_path(root, "check").exists(),
+        "check must mint a check receipt"
+    );
+
+    // Stop still blocks: check is not a verifying arm.
+    let stop = hook_stop(root);
+    let s = combined(&stop);
+    assert!(
+        s.contains("\"block\"") || s.contains("decision"),
+        "Stop must block after check-only: {s}"
+    );
+    assert!(
+        s.contains("harden") || s.contains("run") || s.contains("check alone"),
+        "reason must say check is not enough: {s}"
+    );
+}
+
+// PROOF 10 — a forged receipt (no magic) does not clear Stop.
+#[cfg(unix)]
+#[test]
+fn proof_forged_receipt_does_not_clear_stop_nudge() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::write(root.join("a.rs"), "fn a() {}\n").unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-q", "-m", "seed"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("a.rs"), "fn a() { /* dirty */ }\n").unwrap();
+
+    // Casual echo forgery: timestamp only, no magic/arm.
+    let p = receipt_path(root, "run");
+    fs::create_dir_all(p.parent().unwrap()).unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    fs::write(&p, format!("{now}\n\n")).unwrap();
+
+    let stop = hook_stop(root);
+    let s = combined(&stop);
+    assert!(
+        s.contains("\"block\""),
+        "forged receipt must not clear Stop: {s}"
+    );
+}
+
+// PROOF 11 — "Found 0 mutants" is not "every mutant caught". No receipt.
+#[test]
+fn proof_zero_mutants_refuses_to_certify() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::write(
+        root.join("mutants.txt"),
+        "Found 0 mutants to test\n0 mutants tested: 0 missed, 0 caught\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"repo":"proof","highRiskUnits":["lib"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/mutation.json"),
+        r#"{"cmd":"cat mutants.txt","base":"HEAD"}"#,
+    )
+    .unwrap();
+
+    let receipt = receipt_path(root, "harden");
+    let _ = fs::remove_file(&receipt);
+
+    let out = crucible(&["harden"], root);
+    let s = combined(&out);
+    assert_ne!(out.status.code(), Some(0), "zero mutants must not pass: {s}");
+    assert!(
+        s.contains("0 mutants") || s.contains("nothing was mutated"),
+        "must name zero-mutant refusal: {s}"
+    );
+    assert!(!receipt.exists(), "zero-mutant harden must not mint a receipt");
+}
+
+// PROOF 12 — live contrast on the committed mutation-crate: cargo test green,
+// crucible harden (real captured cargo-mutants bytes) fails closed.
+// This is the headline: a green unit suite is not proof tests bite.
+#[test]
+fn proof_live_mutation_crate_cargo_test_green_harden_blocks() {
+    let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/proof/mutation-crate");
+    assert!(
+        crate_dir.join("Cargo.toml").exists(),
+        "mutation-crate fixture missing"
+    );
+
+    let cargo = Command::new("cargo")
+        .args(["test", "-q"])
+        .current_dir(&crate_dir)
+        .output()
+        .expect("cargo test mutation-crate");
+    assert_eq!(
+        cargo.status.code(),
+        Some(0),
+        "control: mutation-crate must be green under cargo test:\n{}",
+        combined(&cargo)
+    );
+
+    // Harden against the committed real cargo-mutants capture (same bytes as PROOF 1).
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    let fixture = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/cargo-mutants-real.txt"
+    ))
+    .unwrap();
+    fs::write(root.join("mutants.txt"), fixture).unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"repo":"proof","highRiskUnits":["lib"]}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/mutation.json"),
+        r#"{"cmd":"cat mutants.txt","base":"HEAD"}"#,
+    )
+    .unwrap();
+
+    let receipt = receipt_path(root, "harden");
+    let _ = fs::remove_file(&receipt);
+    let out = crucible(&["harden"], root);
+    let s = combined(&out);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "same green suite's missed mutant must block harden: {s}"
+    );
+    assert!(
+        s.contains("should_buy") || s.contains("true"),
+        "must name the reward-hack survivor: {s}"
+    );
+    let survivors =
+        fs::read_to_string(root.join(".crucible/survivors.json")).unwrap_or_default();
+    assert!(
+        survivors.contains("should_buy") || survivors.contains("lib.rs"),
+        "survivors.json material: {survivors}"
+    );
+    assert!(!receipt.exists(), "blocking harden mints no receipt");
+}
+
+// PROOF 13 — stale LCOV left on disk cannot certify a new cover run.
+#[test]
+fn proof_stale_lcov_cannot_certify_cover() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git_init(root);
+    fs::create_dir_all(root.join(".crucible")).unwrap();
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(root.join("src/pay.rs"), "pub fn charge() {}\n").unwrap();
+    fs::write(
+        root.join(".crucible/adapter.json"),
+        r#"{"repo":"proof","highRiskUnits":["pay"]}"#,
+    )
+    .unwrap();
+    fs::create_dir_all(root.join("target")).unwrap();
+    let lcov = root.join("target/lcov.info");
+    fs::write(
+        &lcov,
+        "SF:src/pay.rs\nFN:1,charge\nFNDA:1,charge\nend_of_record\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join(".crucible/coverage.json"),
+        // cmd that does not rewrite LCOV — leaves the stale file.
+        r#"{"cmd":"true","base":"HEAD","lcovPath":"target/lcov.info"}"#,
+    )
+    .unwrap();
+    assert!(
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["commit", "-q", "-m", "seed"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(root.join("src/pay.rs"), "pub fn charge() { /* change */ }\n").unwrap();
+    // Age past the 2s skew: LCOV mtime is now; sleep so the cover run starts later.
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    let receipt = receipt_path(root, "cover");
+    let _ = fs::remove_file(&receipt);
+    let out = crucible(&["cover", "--base", "HEAD"], root);
+    let s = combined(&out);
+    assert_ne!(out.status.code(), Some(0), "stale LCOV must fail: {s}");
+    assert!(
+        s.contains("stale") || s.contains("older"),
+        "must name stale LCOV: {s}"
+    );
+    assert!(!receipt.exists(), "stale cover must not certify");
+}

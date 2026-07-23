@@ -1,0 +1,42 @@
+{
+  "_note": "Reference acceptance recipe. Replace build/boot/drive with your real commands. Only .crucible/acceptance.json certifies.",
+  "repo": "my-app",
+  "build": {
+    "cmd": "cargo build --release",
+    "timeoutSec": 1800
+  },
+  "boot": {
+    "cmd": "./target/release/my-app --ready",
+    "timeoutSec": 600,
+    "oracle": {
+      "stdoutMatch": "ready",
+      "stdoutForbid": "panicked|FATAL"
+    }
+  },
+  "drive": [
+    {
+      "name": "smoke",
+      "cmd": "cargo test -q --test smoke",
+      "timeoutSec": 600,
+      "oracle": {
+        "stdoutMatch": "test result: ok"
+      }
+    }
+  ],
+  "trust": {
+    "testRoots": [
+      "crates",
+      "frontend/tests",
+      "frontend/src",
+      "src-tauri"
+    ],
+    "testPattern": "(\\.test\\.[tj]sx?$|\\.spec\\.[tj]sx?$|_tests?\\.rs$|/tests?\\.rs$)",
+    "mockMarkers": [
+      "mockIPC(",
+      "renderWithProviders",
+      "open_in_memory",
+      "wiremock",
+      "MockServer"
+    ]
+  }
+}

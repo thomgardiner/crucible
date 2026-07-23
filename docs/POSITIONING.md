@@ -117,8 +117,8 @@ Crucible ships in two layers, and both matter:
 
 Positioning purely as "a skill" drops the enforcement half: a reward-hacking agent will
 skip the check that would catch it, so the skill alone cannot be the net. Say "ships as a
-skill for the agent loop, and a CLI for the CI backstop." Both install without the
-internal dev-team plugin: the CLI via its installer, the skill from Crucible's own repo.
+skill for the agent loop, and a CLI for the CI backstop." The CLI installs via its
+installer; the skill installs from this repository.
 
 ## Messaging rules
 

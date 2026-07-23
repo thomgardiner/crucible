@@ -7,15 +7,13 @@ description: The empirical, deterministic proofs that Crucible catches faked tes
 
 # What Crucible Proves
 
-A testing framework that asks you to trust its claims has the same problem as the
-green suite it is meant to police. So the claims here are not prose. Each one is a
-committed, deterministic proof in `tests/proof.rs` that reproduces on every
-`cargo test`, plus a live demo you can run against real tooling.
+These are the automated checks that back the README. Each row is a test in
+`tests/proof.rs` (`cargo test --test proof`). Claims require an exit code and a
+material side-effect (receipt, survivors file, or named failure) — not a banner alone.
 
-## Meta-rule (do not clown yourself)
+## Proof bar
 
-**A proof that only matches a success banner without a material side-effect is a
-reward-hack of this library.** Every certification claim asserts:
+Every certification claim asserts:
 
 | Claim | Material check (required) |
 | --- | --- |
@@ -37,6 +35,23 @@ cargo test --test proof    # just the PROOF tests
 cargo test                 # the whole suite, proofs included
 ```
 
+## Green without Crucible → blocked with it
+
+| # | Without Crucible (green / silent) | With Crucible | Proof |
+| --- | --- | --- | --- |
+| 1 | Hollow suite: `assert!(true)`, no real assertion — `cargo test` passes | `test-smells` fails closed | PROOF 7 |
+| 2 | Green unit suite, function body replaceable with `true` | `harden` names survivor + survivors.json, no receipt | PROOF 1, 12 |
+| 3 | Green unit suite, app panics on boot | `run` → BROKEN, no receipt | PROOF 2 |
+| 4 | Never-called high-risk function; other symbols covered | `cover` blocks, no receipt | PROOF 8 |
+| 5 | Agent only runs `check`, claims verified | Stop hook still **blocks** | PROOF 9 |
+| 6 | `echo` timestamp into a receipt file | Stop still **blocks** (no magic) | PROOF 10 |
+| 7 | Mutation cmd finds 0 mutants (“clean”) | `harden` refuses to certify | PROOF 11 |
+| 8 | Leftover green LCOV on disk | `cover` refuses stale report | PROOF 13 |
+| 9 | Custom throwaway recipe “RUNS” | Dry-run: NOT certified, no receipt | PROOF 4 |
+| 10 | Empty cover scope vs HEAD | Refuse empty scope | PROOF 5 |
+| 11 | Weaken checker / unwired gate / inert pre-push | `check` fails closed | PROOF 3 |
+| 12 | Crucible’s own suite is hollow | Self `test-smells` fails the build | PROOF 6 |
+
 ## Proof 1: mutation catches a reward-hacked test
 
 A test can pass `cargo test` while asserting nothing about the behavior it claims
@@ -51,10 +66,6 @@ cargo-mutants emitted on that crate, committed in
 - exit 1, named survivor, survivors.json populated, **no** harden receipt
 - **positive control:** clean mutants output → exit 0 **and** harden receipt
 
-Committing the real cargo-mutants output is deliberate: if a cargo-mutants upgrade
-changes the format, this proof fails loudly instead of the gate silently passing
-everything.
-
 Live tooling (needs `cargo-mutants`):
 
 ```
@@ -65,15 +76,10 @@ cargo mutants         # real: 1 missed — the green test does not constrain <=
 
 ## Proof 2: reality arm catches a boot crash
 
-A green unit suite says nothing about whether the real app comes up. The proof
-launches a **real subprocess** that either reaches ready or panics on startup:
-
 - healthy → exit 0, “the app actually runs”, **run receipt present**
 - crash → exit 1, “crashed on launch”, **no receipt**
 
 ## Proof 3: tamper-evidence on the gate
-
-Honest, approved gate (`check` passes + check receipt), then real weakenings:
 
 | Attack | What catches it |
 | --- | --- |
@@ -81,27 +87,62 @@ Honest, approved gate (`check` passes + check receipt), then real weakenings:
 | Comment the gate out of the required lane | “not wired in the required lane” |
 | Empty `highRiskUnits` | judge-config fingerprint invalid |
 | Downgrade T1 → T2, keep approval | tier is in the fingerprint |
-| Strip `prePush` / inert pre-push (`exit 0`, `|| true`) | load-bearing independence wiring |
-
-After each attack is reverted the gate is honest again.
+| Strip `prePush` / inert pre-push (`exit 0`, `\|\| true`) | load-bearing independence wiring |
 
 ## Proof 4: custom `--recipe` never certifies
 
-Throwaway recipe path may “RUN” the fake app but:
-
-- prints NOT certified
-- **writes no receipt**
+- prints NOT certified, **writes no receipt**
 - **positive control:** same body at `.crucible/acceptance.json` **does** mint a receipt
 
 ## Proof 5: cover refuses empty scope
-
-Clean tree vs `HEAD` with a coverage command that would otherwise succeed:
 
 - exit ≠ 0, empty-scope message, **no cover receipt**
 
 ## Proof 6: self-scan
 
 `crucible test-smells tests src` on this repository exits 0.
+
+## Proof 7: hollow tests green under cargo, fail under test-smells
+
+Temp crate with assertion-free + `assert!(true)` tests:
+
+- `cargo test` → exit 0 (control: “normal green”)
+- `crucible test-smells` → exit ≠ 0, names the hollow pattern
+
+## Proof 8: never-called high-risk function
+
+LCOV shows `charge` with FNDA:0 and `refund` hit. Cover on a dirty `pay.rs`:
+
+- exit ≠ 0, names `charge`, **no** cover receipt
+
+## Proof 9: check-only does not clear Stop
+
+Adopted dirty repo, real `crucible check` mints a check receipt, then `crucible hook stop`:
+
+- decision **block** (check is not a verifying arm)
+
+## Proof 10: forged receipt does not clear Stop
+
+Dirty adopted repo, receipt file with only a timestamp (no magic header):
+
+- Stop still **blocks**
+
+## Proof 11: zero mutants refuse certify
+
+`Found 0 mutants to test` → harden exit ≠ 0, **no** receipt
+
+## Proof 12: live contrast (mutation-crate)
+
+Same as PROOF 1’s story, re-stated as an explicit control:
+
+- `cargo test` in `examples/proof/mutation-crate` → green
+- harden on the real MISSED capture → block + survivors.json
+
+## Proof 13: stale LCOV cannot certify
+
+Coverage cmd leaves an old `lcov.info` on disk; cover run starts later:
+
+- refuse stale report, **no** receipt
 
 ## What is not proven here
 
