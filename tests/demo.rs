@@ -21,41 +21,31 @@ fn crucible(args: &[&str]) -> Output {
 /// Seed a local git history so harden can scope B..C (demo ships without a nested .git).
 fn ensure_demo_git() {
     let demo = Path::new(DEMO);
-    if demo.join(".git").exists() {
-        return;
-    }
+    // Always rebuild so CI and local never share a half-seeded tree.
+    let _ = std::fs::remove_dir_all(demo.join(".git"));
     let git = |args: &[&str]| {
-        assert!(
-            Command::new("git")
-                .args(args)
-                .current_dir(demo)
-                .status()
-                .unwrap()
-                .success(),
-            "git {args:?}"
-        );
+        let st = Command::new("git")
+            .args(args)
+            .current_dir(demo)
+            .status()
+            .unwrap();
+        assert!(st.success(), "git {args:?}");
     };
     git(&["init", "-q", "-b", "main"]);
     git(&["config", "user.email", "demo@crucible.test"]);
     git(&["config", "user.name", "demo"]);
-    // Two commits so HEAD~1..HEAD is a real range with high-risk units.
     git(&["add", "-A"]);
     git(&["-c", "commit.gpgsign=false", "commit", "-qm", "demo base"]);
-    // Touch core so high-risk "core" is in the tip range when base is HEAD~1.
+    // Second commit must change high-risk "core" so survivors block (not advisory).
     let core = demo.join("app/core.ts");
-    let mut body = std::fs::read_to_string(&core).unwrap();
-    if !body.contains("// scope-pin") {
-        body.push_str("\n// scope-pin\n");
-        std::fs::write(&core, body).unwrap();
-    }
+    let body = std::fs::read_to_string(&core).expect("demo core.ts");
+    std::fs::write(
+        &core,
+        format!("{body}\n// scope-pin {}\n", std::process::id()),
+    )
+    .unwrap();
     git(&["add", "app/core.ts"]);
-    git(&[
-        "-c",
-        "commit.gpgsign=false",
-        "commit",
-        "-qm",
-        "core in scope",
-    ]);
+    git(&["-c", "commit.gpgsign=false", "commit", "-qm", "core in scope"]);
 }
 
 #[test]
@@ -80,14 +70,12 @@ fn demo_run_reports_runs() {
 #[test]
 fn demo_harden_surfaces_the_survivor() {
     ensure_demo_git();
-    // Scope against the seed parent so app/core.ts is in B..C high-risk.
     let o = crucible(&["harden", "--base", "HEAD~1", "--candidate", "HEAD"]);
     let s = format!(
         "{}{}",
         String::from_utf8_lossy(&o.stdout),
         String::from_utf8_lossy(&o.stderr)
     );
-    // Banner alone is theater: a print-always-exit-0 harden would still pass that.
     assert_ne!(
         o.status.code(),
         Some(0),
