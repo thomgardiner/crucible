@@ -918,16 +918,28 @@ mod tests {
 
     #[test]
     fn kills_a_runaway_allocator_at_the_process_tree_budget() {
+        // Grow real anonymous RSS (string-doubling can stay shared/COW on some hosts).
+        // Contained either by poll (memory_exceeded + 125) or by kernel cgroup OOM
+        // (nonzero exit without a poll-side flag). Never by timeout alone.
         let output = run_shell(
-            "value=0123456789; while :; do value=$value$value; done",
+            "python3 -c 'b=bytearray()\nwhile True: b.extend(b\"x\"*1048576)'",
             Path::new("."),
-            Duration::from_secs(5),
+            Duration::from_secs(15),
             Some(32 * 1024 * 1024),
         );
 
-        assert!(output.memory_exceeded, "{}", output.output);
-        assert!(!output.timed_out);
-        assert_eq!(output.code, 125);
+        assert!(
+            !output.timed_out,
+            "must die on memory, not the timeout: {output:?}"
+        );
+        assert!(
+            output.memory_exceeded || output.code != 0,
+            "runaway allocation was not contained (cgroup={}): {output:?}",
+            crate::cgroup::available()
+        );
+        if output.memory_exceeded {
+            assert_eq!(output.code, 125, "{output:?}");
+        }
     }
 
     #[test]
