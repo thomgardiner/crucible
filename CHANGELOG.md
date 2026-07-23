@@ -5,6 +5,11 @@ versioning.
 
 ## Unreleased
 
+### Added
+
+- `harden` / `cover` accept `--candidate` (tip C, default HEAD) with `--base`
+  (B) so arms scope to an explicit B..C range instead of a static HEAD-only view.
+
 ### Changed
 
 - Config load strips `_…` annotation keys (e.g. `_note`) then refuses any other

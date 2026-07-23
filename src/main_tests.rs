@@ -61,9 +61,9 @@ fn changed_files_scopes_to_adoption_root_inside_a_monorepo() {
     git(&["add", "-A"]);
     git(&["-c", "commit.gpgsign=false", "commit", "-qm", "seed"]);
 
-    // Dirt only outside the adoption root.
+    // Dirt only outside the adoption root (untracked, candidate=HEAD).
     fs::write(root.join("other/noise.rs"), "fn n() { /* dirty */ }\n").unwrap();
-    let scoped = changed_files(&root.join("pkg"), "HEAD").unwrap();
+    let scoped = changed_files(&root.join("pkg"), "HEAD", "HEAD").unwrap();
     assert!(
         scoped.is_empty(),
         "sibling monorepo dirt must not enter pkg scope: {scoped:?}"
@@ -71,7 +71,7 @@ fn changed_files_scopes_to_adoption_root_inside_a_monorepo() {
 
     // Dirt under the adoption root is visible, re-rooted (no pkg/ prefix).
     fs::write(root.join("pkg/app/core.ts"), "export const a = 2;\n").unwrap();
-    let scoped = changed_files(&root.join("pkg"), "HEAD").unwrap();
+    let scoped = changed_files(&root.join("pkg"), "HEAD", "HEAD").unwrap();
     assert!(
         scoped.contains("app/core.ts"),
         "adoption-root change must be visible as relative path: {scoped:?}"

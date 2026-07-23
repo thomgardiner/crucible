@@ -232,18 +232,19 @@ fn a_missing_checker_file_fails() {
 
 #[test]
 fn gate_fingerprint_is_not_confusable_by_delimiters() {
-    // checker "c|x" + rule "r" and checker "c" + rule "x|r" concatenate identically under
-    // an unescaped `|`; length-prefixing keeps them distinct (Codex P1 #9).
+    // checker path + rule must not collide under naive concatenation (Codex P1 #9).
+    // Nested paths stay Windows-legal ("|" is illegal in Windows filenames).
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    fs::write(root.join("c|x"), "x\n").unwrap();
-    fs::write(root.join("c"), "x\n").unwrap();
+    fs::create_dir_all(root.join("cx")).unwrap();
+    fs::write(root.join("cx").join("r"), "body-a\n").unwrap();
+    fs::write(root.join("c"), "body-b\n").unwrap();
     let g1: crate::config::Gate = serde_json::from_value(
-        json!({ "id": "a", "rule": "r", "tier": "T1", "checker": "c|x", "blockingCondition": "always" }),
+        json!({ "id": "a", "rule": "r", "tier": "T1", "checker": "cx/r", "blockingCondition": "always" }),
     )
     .unwrap();
     let g2: crate::config::Gate = serde_json::from_value(
-        json!({ "id": "a", "rule": "x|r", "tier": "T1", "checker": "c", "blockingCondition": "always" }),
+        json!({ "id": "a", "rule": "x/r", "tier": "T1", "checker": "c", "blockingCondition": "always" }),
     )
     .unwrap();
     assert_ne!(

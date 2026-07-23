@@ -77,18 +77,24 @@ enum Cmd {
     },
     /// Mutation gate: block when a mutant survives on high-risk changed code.
     Harden {
-        /// Diff base (default: the recipe's base, else origin/master).
+        /// Diff base B (default: the recipe's base, else origin/master).
         #[arg(long)]
         base: Option<String>,
+        /// Candidate tip C (default: HEAD). Scopes arms to the explicit B..C range.
+        #[arg(long)]
+        candidate: Option<String>,
         /// Recipe path (default: .crucible/mutation.json).
         #[arg(long)]
         recipe: Option<PathBuf>,
     },
     /// Coverage floor: name the changed functions no test ever calls.
     Cover {
-        /// Diff base (default: the recipe's base, else origin/master).
+        /// Diff base B (default: the recipe's base, else origin/master).
         #[arg(long)]
         base: Option<String>,
+        /// Candidate tip C (default: HEAD). Scopes arms to the explicit B..C range.
+        #[arg(long)]
+        candidate: Option<String>,
         /// Recipe path (default: .crucible/coverage.json).
         #[arg(long)]
         recipe: Option<PathBuf>,
@@ -153,8 +159,16 @@ fn main() -> ExitCode {
         Cmd::Check => cmd_check(&repo_root),
         Cmd::Audit => cmd_audit(&repo_root),
         Cmd::Run { json, recipe } => cmd_run(&repo_root, json, recipe),
-        Cmd::Harden { base, recipe } => cmd_harden(&repo_root, base, recipe),
-        Cmd::Cover { base, recipe } => cmd_cover(&repo_root, base, recipe),
+        Cmd::Harden {
+            base,
+            candidate,
+            recipe,
+        } => cmd_harden(&repo_root, base, candidate, recipe),
+        Cmd::Cover {
+            base,
+            candidate,
+            recipe,
+        } => cmd_cover(&repo_root, base, candidate, recipe),
         Cmd::Flake { recipe } => cmd_flake(&repo_root, recipe),
         Cmd::Approve { gate, by, note } => cmd_approve(&repo_root, &gate, by, &note),
         Cmd::Doctor => cmd_doctor(&repo_root),
@@ -394,11 +408,16 @@ fn cmd_run(repo_root: &Path, json: bool, recipe: Option<PathBuf>) -> Result<u8> 
 // empty diff (a `--base HEAD` that scopes to nothing cannot prove the change is
 // low-risk), or an undiscoverable diff — all mean "treat as high-risk so
 // survivors block" rather than silently passing.
-fn changed_hits_high_risk(repo_root: &Path, base: &str, high_risk: &[String]) -> bool {
+fn changed_hits_high_risk(
+    repo_root: &Path,
+    base: &str,
+    candidate: &str,
+    high_risk: &[String],
+) -> bool {
     if high_risk.is_empty() {
         return true;
     }
-    match changed_files(repo_root, base) {
+    match changed_files(repo_root, base, candidate) {
         Ok(files) if files.is_empty() => true,
         Ok(files) => files
             .iter()
@@ -407,7 +426,12 @@ fn changed_hits_high_risk(repo_root: &Path, base: &str, high_risk: &[String]) ->
     }
 }
 
-fn cmd_harden(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) -> Result<u8> {
+fn cmd_harden(
+    repo_root: &Path,
+    base: Option<String>,
+    candidate: Option<String>,
+    recipe: Option<PathBuf>,
+) -> Result<u8> {
     let custom_recipe = recipe.is_some();
     let recipe_path = recipe.unwrap_or_else(|| repo_root.join(".crucible/mutation.json"));
     if !recipe_path.exists() {
@@ -427,12 +451,13 @@ fn cmd_harden(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) -
     let base = base
         .or_else(|| recipe.base.clone())
         .unwrap_or_else(|| "origin/master".into());
+    let candidate = candidate.unwrap_or_else(|| "HEAD".into());
 
     // highRiskUnits live on the adapter; harden is usable without one (advisory everywhere).
     let high_risk = load_json::<Adapter>(&repo_root.join(".crucible/adapter.json"))
         .map(|a| a.high_risk_units)
         .unwrap_or_default();
-    let is_high_risk = changed_hits_high_risk(repo_root, &base, &high_risk);
+    let is_high_risk = changed_hits_high_risk(repo_root, &base, &candidate, &high_risk);
 
     let cwd = match &recipe.cwd {
         Some(c) => repo_root.join(c),
@@ -528,7 +553,9 @@ fn run_recipe_command(
 // change too — `git diff` cannot see a brand-new file, which is exactly the least-tested
 // code. When `--repo` is a subdirectory of a larger git worktree, only paths under that
 // adoption root count (monorepo dirt outside the demo must not flip high-risk scoping).
-fn changed_files(repo_root: &Path, base: &str) -> Result<HashSet<String>> {
+/// Files changed on the exclusive B..C range (plus untracked when C is HEAD).
+/// Callers pass explicit base/candidate so empty HEAD..HEAD cannot falsely certify.
+fn changed_files(repo_root: &Path, base: &str, candidate: &str) -> Result<HashSet<String>> {
     // Diff-discovery runs BEFORE the machine-wide slot is acquired, so a hung or hostile
     // git must not hang Crucible outside every resource cap.
     let run = |args: &[&str]| -> Result<Vec<String>> {
@@ -551,10 +578,28 @@ fn changed_files(repo_root: &Path, base: &str) -> Result<HashSet<String>> {
             .filter(|l| !l.is_empty())
             .collect())
     };
-    let mut files: HashSet<String> = run(&["diff", "--no-renames", "--name-only", base])?
-        .into_iter()
-        .collect();
-    files.extend(run(&["ls-files", "--others", "--exclude-standard"])?);
+    // Explicit B..C: live tip includes working-tree dirt against B; pinned C
+    // uses the exclusive committed range only.
+    let candidate_is_head = candidate == "HEAD"
+        || run(&["rev-parse", "--verify", candidate])
+            .ok()
+            .and_then(|v| v.into_iter().next())
+            == run(&["rev-parse", "HEAD"])
+                .ok()
+                .and_then(|v| v.into_iter().next());
+    let mut files: HashSet<String> = if candidate_is_head {
+        run(&["diff", "--no-renames", "--name-only", base])?
+            .into_iter()
+            .collect()
+    } else {
+        let range = format!("{base}...{candidate}");
+        run(&["diff", "--no-renames", "--name-only", &range])?
+            .into_iter()
+            .collect()
+    };
+    if candidate_is_head {
+        files.extend(run(&["ls-files", "--others", "--exclude-standard"])?);
+    }
 
     // Git prints paths relative to the worktree root, not to `--repo`. Scope and re-root.
     let toplevel = run(&["rev-parse", "--show-toplevel"])?
@@ -587,7 +632,12 @@ fn changed_files(repo_root: &Path, base: &str) -> Result<HashSet<String>> {
     Ok(scoped)
 }
 
-fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) -> Result<u8> {
+fn cmd_cover(
+    repo_root: &Path,
+    base: Option<String>,
+    candidate: Option<String>,
+    recipe: Option<PathBuf>,
+) -> Result<u8> {
     let custom_recipe = recipe.is_some();
     let recipe_path = recipe.unwrap_or_else(|| repo_root.join(".crucible/coverage.json"));
     if !recipe_path.exists() {
@@ -605,8 +655,10 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
     let base = base
         .or_else(|| recipe.base.clone())
         .unwrap_or_else(|| "origin/master".into());
-    let mut changed = changed_files(repo_root, &base)
-        .with_context(|| format!("cannot scope the coverage floor to the diff against {base}"))?;
+    let candidate = candidate.unwrap_or_else(|| "HEAD".into());
+    let mut changed = changed_files(repo_root, &base, &candidate).with_context(|| {
+        format!("cannot scope the coverage floor to the diff {base}...{candidate}")
+    })?;
     // A deleted file has no functions to cover; keeping it would demand coverage records
     // for code that no longer exists (Codex round 5).
     changed.retain(|f| repo_root.join(f).exists());
@@ -615,7 +667,7 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
     // as "fully covered" and write a receipt for a change it never inspected.
     if changed.is_empty() {
         bail!(
-            "no changed files against {base} — cover refuses to certify an empty scope (nothing to cover means nothing was proven, not that the floor is met)"
+            "no changed files on {base}...{candidate} — cover refuses to certify an empty scope (nothing to cover means nothing was proven, not that the floor is met)"
         );
     }
     let high_risk = load_json::<Adapter>(&repo_root.join(".crucible/adapter.json"))
