@@ -318,12 +318,40 @@ fn cmd_approve(repo_root: &Path, gate: &str, by: Option<String>, note: &str) -> 
 // verified: point a certifying arm at a throwaway recipe whose build/boot/drive
 // commands just echo the success markers, and it writes a passing receipt. Only
 // the repo's canonical, approved recipe can mint a receipt.
-fn certifies(custom_recipe: bool, arm: &str) -> bool {
+fn certifies(repo_root: &Path, custom_recipe: bool, arm: &str) -> bool {
     if custom_recipe {
         eprintln!(
             "Crucible {arm}: a custom --recipe is a dry run — NOT certified (no receipt is written); only the repo's approved .crucible recipe can certify."
         );
         return false;
+    }
+    // If the repo has a full gate config, refuse receipts while judge config is dirty
+    // (self-weakened acceptance/mutation/waivers without re-approval). Incomplete
+    // scaffolds (proof fixtures with only mutation.json) still allow arm receipts.
+    if repo_root.join(".crucible/adapter.json").exists()
+        && repo_root.join(".crucible/charter.json").exists()
+    {
+        match load_gate_config(repo_root) {
+            Ok((adapter, ledger, approvals)) => {
+                let r = charter::check_charter(repo_root, &ledger, &adapter, &approvals);
+                if !r.failures.is_empty() {
+                    eprintln!(
+                        "Crucible {arm}: judge config is not cleanly approved — NOT certified \
+                         (fix `crucible check` / re-approve before a receipt can clear the Stop nudge):"
+                    );
+                    for f in r.failures.iter().take(5) {
+                        eprintln!("  ✗ {f}");
+                    }
+                    return false;
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "Crucible {arm}: could not load gate config — NOT certified: {e}"
+                );
+                return false;
+            }
+        }
     }
     true
 }
@@ -348,7 +376,7 @@ fn cmd_run(repo_root: &Path, json: bool, recipe: Option<PathBuf>) -> Result<u8> 
         eprintln!("Crucible: could not read total RAM — running the app without a memory ceiling.");
     }
     let report = reality::run_crucible(repo_root, &recipe, &proc::ShellExec, memory_bytes);
-    if report.verdict == "RUNS" && certifies(custom_recipe, "run") {
+    if report.verdict == "RUNS" && certifies(repo_root, custom_recipe, "run") {
         hook::write_receipt(repo_root, "run"); // only a passing, canonical-recipe run counts
     }
     if json {
@@ -415,7 +443,7 @@ fn cmd_harden(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) -
     // several sessions do not run cargo-mutants at once and OOM the box.
     let _slot = admission::acquire().map_err(anyhow::Error::msg)?;
     let res = mutation::run_harden(&recipe, &cwd, &waivers, is_high_risk, &proc::ShellExec);
-    if res.verdict == "pass" && certifies(custom_recipe, "harden") {
+    if res.verdict == "pass" && certifies(repo_root, custom_recipe, "harden") {
         hook::write_receipt(repo_root, "harden"); // only a clean, canonical-recipe run counts
     }
 
@@ -572,6 +600,7 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
     let timeout = std::time::Duration::from_secs(recipe.timeout_sec.unwrap_or(1800));
     // The coverage build is heavy; gate it machine-wide before spawning.
     let _slot = admission::acquire().map_err(anyhow::Error::msg)?;
+    let started = std::time::SystemTime::now();
     let out = run_recipe_command(&recipe.cmd, &cwd, timeout, recipe.memory_mb)?;
     // Fail closed: a coverage tool that timed out or exited non-zero produced no trustworthy
     // report, and "no evidence" must never read as "fully covered".
@@ -593,8 +622,24 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
         );
     }
     let lcov_text = match &recipe.lcov_path {
-        Some(p) => std::fs::read_to_string(repo_root.join(p))
-            .with_context(|| format!("reading LCOV at {p} (did the coverage command run?)"))?,
+        Some(p) => {
+            let path = repo_root.join(p);
+            let meta = std::fs::metadata(&path)
+                .with_context(|| format!("reading LCOV at {p} (did the coverage command write it?)"))?;
+            // Reject a report that predates this run (stale file left on disk). Allow 2s
+            // of filesystem mtime skew so coarse timestamps do not false-fail.
+            if let Ok(mtime) = meta.modified() {
+                let skew = std::time::Duration::from_secs(2);
+                if mtime + skew < started {
+                    bail!(
+                        "LCOV at {p} is older than this coverage run — refusing a stale report \
+                         (agent could leave a green prior file and skip a real re-run)"
+                    );
+                }
+            }
+            std::fs::read_to_string(&path)
+                .with_context(|| format!("reading LCOV at {p}"))?
+        }
         None => out.output,
     };
     let files = coverage::parse_lcov(&lcov_text);
@@ -626,7 +671,7 @@ fn cmd_cover(repo_root: &Path, base: Option<String>, recipe: Option<PathBuf>) ->
             report.fn_less_matched.join(", ")
         );
     }
-    if report.verdict == "pass" && certifies(custom_recipe, "cover") {
+    if report.verdict == "pass" && certifies(repo_root, custom_recipe, "cover") {
         hook::write_receipt(repo_root, "cover"); // only a clean, canonical-recipe floor counts
     }
 
@@ -783,14 +828,21 @@ fn cmd_flake(repo_root: &Path, recipe: Option<PathBuf>) -> Result<u8> {
 
 fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
     let r = init::scaffold(repo_root, force)?;
+    let display_path = |f: &str| {
+        if f.starts_with(".githooks/") || f.starts_with('/') {
+            f.to_string()
+        } else {
+            format!(".crucible/{f}")
+        }
+    };
     if !r.written.is_empty() {
         println!(
-            "Crucible: scaffolded {} file(s) into {}:",
+            "Crucible: scaffolded {} file(s) under {} and the independence hook:",
             r.written.len(),
             r.dir.display()
         );
         for f in &r.written {
-            println!("  + .crucible/{f}");
+            println!("  + {}", display_path(f));
         }
     }
     if !r.skipped.is_empty() {
@@ -799,7 +851,7 @@ fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
             r.skipped.len()
         );
         for f in &r.skipped {
-            println!("  = .crucible/{f}");
+            println!("  = {}", display_path(f));
         }
     }
     if r.written.is_empty() {
@@ -812,9 +864,12 @@ fn cmd_init(repo_root: &Path, force: bool) -> Result<u8> {
      acceptance.json / mutation.json (build, boot, drive, mutation command).
   2. Replace the placeholder gate in charter.json with your real T1 gates, each
      wired into the gate-runner file named in adapter.json.
-  3. Have a reviewer pin the config:  crucible approve __config__ --by <reviewer>
+  3. Point git at the hook dir so pre-push fires:
+       git config core.hooksPath .githooks
+  4. Have a reviewer pin the config:  crucible approve __config__ --by <reviewer>
      and each gate's oracle:          crucible approve <gate> --by <reviewer>
-  4. Confirm it is honest:            crucible check
+     (separate commits from the config they bless).
+  5. Confirm it is honest:            crucible check && crucible doctor
 See docs/ADOPTING.md for the full contract."
     );
     Ok(0)

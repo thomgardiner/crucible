@@ -80,7 +80,7 @@ Honest, approved gate (`check` passes + check receipt), then real weakenings:
 | Comment the gate out of the required lane | “not wired in the required lane” |
 | Empty `highRiskUnits` | judge-config fingerprint invalid |
 | Downgrade T1 → T2, keep approval | tier is in the fingerprint |
-| Strip `prePush` / inert pre-push | load-bearing independence wiring |
+| Strip `prePush` / inert pre-push (`exit 0`, `|| true`) | load-bearing independence wiring |
 
 After each attack is reverted the gate is honest again.
 

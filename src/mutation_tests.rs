@@ -324,3 +324,28 @@ fn harden_rejects_invalid_waivers_before_running() {
     assert!(!exec.ran.get(), "must reject waivers before spawning");
     assert!(r.waiver_failures.iter().any(|f| f.contains("reason")));
 }
+
+#[test]
+fn harden_rejects_invalid_survivor_pattern_instead_of_certifying_clean() {
+    // A broken pattern used to parse as zero survivors; with exit 0 that looked green.
+    let mut rec = recipe();
+    rec.survivor_pattern = Some("([unclosed".into());
+    let clean = "Found 1 mutants to test\nMISSED a.rs:1:1: x\n1 mutants tested: 1 missed\n";
+    let r = run(&rec, &[], true, &FakeExec::new(0, clean, false));
+    assert_eq!(r.verdict, "block");
+    assert!(
+        r.error.unwrap().contains("survivorPattern"),
+        "must name the pattern failure"
+    );
+}
+
+#[test]
+fn harden_refuses_to_certify_when_zero_mutants_were_tested() {
+    let out = "Found 0 mutants to test\n0 mutants tested: 0 caught\n";
+    let r = run(&recipe(), &[], true, &FakeExec::new(0, out, false));
+    assert_eq!(r.verdict, "block");
+    assert!(
+        r.error.unwrap().contains("0 mutants"),
+        "must refuse empty mutation scope"
+    );
+}

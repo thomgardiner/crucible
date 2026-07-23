@@ -58,5 +58,12 @@
     "fingerprint": "74b258988e81fef1ea9a2ef212390549ad7dedd9d5c1bd208d8b7c7d47f4fb36",
     "gate": "__config__",
     "note": ""
+  },
+  {
+    "approvedBy": "demo-reviewer",
+    "at": "2026-07-23T17:29:55Z",
+    "fingerprint": "86123763a7e4ddf13508ef8d43992a6b3cccc1c8036e65e0628a0c9398c4981f",
+    "gate": "__config__",
+    "note": ""
   }
 ]

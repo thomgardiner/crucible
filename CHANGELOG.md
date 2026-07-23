@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Inert pre-push / gate wiring:** `|| true`, `|| exit 0`, `if false`, and `false &&`
+  no longer count as load-bearing `crucible check` or checker wiring — same as comments.
+- **Receipts:** magic header + arm + content fingerprint (full stream for files ≤8 MiB;
+  head+tail for larger so Stop stays bounded). Casual `echo` forgeries without the
+  magic fail closed.
+- **Cover:** unmatched changed *source* files fail the floor even when LCOV only
+  mentions another language/extension (`.js`-only report cannot hide a `.rs` change).
+- **Stop / doctor:** adopted repos with no usable git answer assume dirty (fail closed);
+  `doctor` warns when `core.hooksPath` is unset or does not point at `prePush`.
+- **Judge pin:** `adapter.prePush` is part of the config fingerprint so neutering the
+  hook requires a fresh `__config__` approval.
+- **Init:** prints real paths for `.githooks/pre-push`, and next steps include
+  `git config core.hooksPath .githooks` plus `doctor`.
+- **Release CI:** cargo-dist `release.yml` workflow generated for installers.
+- **Stop nudge:** only `run` / `harden` receipts clear finishing with dirty work —
+  `check` or `cover` alone no longer let an agent skip testing while looking verified.
+- **Harden:** invalid `survivorPattern` regex fails closed (no silent "zero survivors").
+- **Cover:** LCOV on disk older than this run is rejected as stale.
 - **Skill POLICY:** `skills/crucible/POLICY.md` is the agent gauntlet (forbidden claims,
   risk ladder, independence honesty, done-report). SKILL.md is thin and points at it.
 - **`.gitignore`:** excludes local agent harness dirs (`.claude/`, `.grok/`,

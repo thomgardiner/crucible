@@ -214,6 +214,19 @@ fn extension(path: &str) -> Option<&str> {
         .and_then(|e| e.to_str())
 }
 
+/// Extensions we treat as code that coverage tools should see. Kept deliberately
+/// broad; non-source paths (md, json, toml) are not forced into the floor.
+fn is_source_path(path: &str) -> bool {
+    matches!(
+        extension(path).map(|e| e.to_ascii_lowercase()).as_deref(),
+        Some(
+            "rs" | "go" | "py" | "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" | "c" | "cc"
+                | "cpp" | "cxx" | "h" | "hpp" | "java" | "kt" | "kts" | "swift" | "m" | "mm"
+                | "rb" | "php" | "cs" | "fs" | "scala" | "clj" | "ex" | "exs" | "zig" | "nim"
+        )
+    )
+}
+
 // Restrict coverage to the changed files. A never-called function blocks (in a high-risk
 // unit) or is advisory; never-taken branches and uncovered lines are reported as the
 // weaker signals they are. A coverage tool emits a function once per codegen instance;
@@ -227,18 +240,12 @@ pub fn cover(files: &[FileCov], changed: &HashSet<String>, high_risk: &[String])
     let mut fn_by_file: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
     let mut seen = HashSet::new();
 
-    // A changed file the coverage report should know about (its extension appears among
-    // the report's own SF records) but doesn't is untested code the intersection would
-    // silently skip. Extensions the report never mentions (docs, configs) are out of
-    // scope; the comparison is case-insensitive so `.RS` does not slip past `.rs`.
-    let lcov_exts: HashSet<String> = files
-        .iter()
-        .filter_map(|f| extension(&f.file))
-        .map(|e| e.to_ascii_lowercase())
-        .collect();
+    // Changed *source* files with no LCOV SF match are untested. The floor uses
+    // source-extension identity, not "extensions already present in this report",
+    // so a `.js`-only LCOV cannot hide a changed `.rs` file. Docs/config stay out.
     let mut unmatched_changed: Vec<String> = changed
         .iter()
-        .filter(|c| extension(c).is_some_and(|e| lcov_exts.contains(&e.to_ascii_lowercase())))
+        .filter(|c| is_source_path(c))
         .filter(|c| !files.iter().any(|f| same_file(&f.file, c)))
         .cloned()
         .collect();

@@ -2,10 +2,10 @@
 //! `crucible hook <event>`, so the logic lives in this binary and stays identical
 //! across any TUI that speaks the hook JSON protocol. The load-bearing one is Stop:
 //! when an agent tries to finish an adopted repo with uncommitted work and no recent
-//! verification, it is nudged to run `crucible run`/`harden` first. This is the
-//! enforcement the CLI-in-CI cannot provide inside the agent's loop.
+//! verification, it is nudged to run `crucible run`/`harden` first. This is in-loop
+//! pressure, not a sealed guarantee — CI and pre-push remain the hard backstop.
 
-use crate::hash::sha256_hex;
+use crate::hash::{content_fingerprint, sha256_hex};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -13,6 +13,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 // A verification is "recent" within this window, so a just-verified agent is not nagged.
 const RECEIPT_MAX_AGE_SECS: u64 = 1800;
+
+/// First line of every receipt this binary writes. Casual `echo` forgeries without it
+/// do not clear the Stop nudge. Not a secret — raises the bar, does not seal it.
+const RECEIPT_MAGIC: &str = "CRUCIBLE-RECEIPT-v1";
 
 pub struct HookResult {
     pub stdout: String,
@@ -33,10 +37,11 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-// The arms whose success means the CHANGE was verified. `flake` deliberately does not
-// count: determinism says nothing about the change being correct, so a flake receipt
-// must never satisfy a nudge asking for run/harden/check (Codex round 3).
-const VERIFYING_ARMS: [&str; 4] = ["check", "run", "harden", "cover"];
+// Arms whose success means the *change* was verified for Stop-nudge purposes.
+// `check` is gate honesty only — an agent must not clear the nudge with check alone
+// while never running tests or mutation. `cover` is "was it executed", not "tests bite".
+// `flake` is determinism only. So only run (app real) and harden (tests bite) count.
+const VERIFYING_ARMS: [&str; 2] = ["run", "harden"];
 
 // Per-repo, per-arm receipts in the OS temp dir (keyed by repo path), written whenever
 // the agent verifies. Kept out of the repo so they never churn the working tree. Each
@@ -50,18 +55,11 @@ pub fn receipt_path(repo: &Path, arm: &str) -> PathBuf {
         .join(format!("{key}.{arm}.receipt"))
 }
 
-// How many leading bytes of each dirty file feed the fingerprint. Bounded so a multi-GB
-// changed file cannot be buffered into memory (Codex resource review): a full `git diff`
-// or whole-file read would OOM. A real post-verification edit changes a file's size,
-// mtime, or leading bytes, so path + len + mtime + this sample invalidates the receipt.
-const FINGERPRINT_SAMPLE: usize = 4096;
+// Full stream for normal source; head+tail for multi-MB blobs so Stop stays bounded.
+const FINGERPRINT_FULL_MAX: u64 = 8 * 1024 * 1024;
 
-// Fingerprint of the uncommitted state: for every modified-tracked and untracked file
-// (`git ls-files -m -o -z` gives clean NUL-separated paths, including inside untracked
-// directories), a bounded digest of its path, size, mtime, and leading bytes, plus the
-// current HEAD so a commit or branch switch also invalidates. Empty when git cannot
-// answer, which downgrades the binding to time-only (consistent with
-// has_uncommitted_changes failing open without git).
+// Fingerprint of the uncommitted state: every dirty/staged path + content digest
+// (streamed, constant memory) + HEAD. Empty only when git cannot answer.
 fn tree_fingerprint(repo: &Path) -> String {
     let git = |args: &[&str]| -> Option<Vec<u8>> {
         let out = Command::new("git")
@@ -94,17 +92,11 @@ fn tree_fingerprint(repo: &Path) -> String {
         input.push(0);
         let path = repo.join(String::from_utf8_lossy(raw).as_ref());
         if let Ok(meta) = std::fs::metadata(&path) {
-            let mtime = meta
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            input.extend_from_slice(format!("{}\x00{mtime}\x00", meta.len()).as_bytes());
-            if let Ok(mut f) = std::fs::File::open(&path) {
-                let mut sample = vec![0u8; FINGERPRINT_SAMPLE];
-                let n = std::io::Read::read(&mut f, &mut sample).unwrap_or(0);
-                input.extend_from_slice(&sample[..n]);
+            input.extend_from_slice(format!("{}\x00", meta.len()).as_bytes());
+            // Content digest (full when small; head+tail when huge) so post-sample edits
+            // still invalidate without streaming multi-GB dirty artifacts on every Stop.
+            if let Ok(digest) = content_fingerprint(&path, FINGERPRINT_FULL_MAX) {
+                input.extend_from_slice(digest.as_bytes());
             }
         }
         input.push(b'\n');
@@ -117,7 +109,11 @@ pub fn write_receipt(repo: &Path, arm: &str) {
     if let Some(dir) = p.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
-    let body = format!("{}\n{}", now_secs(), tree_fingerprint(repo));
+    let body = format!(
+        "{RECEIPT_MAGIC}\n{arm}\n{}\n{}\n",
+        now_secs(),
+        tree_fingerprint(repo)
+    );
     let _ = std::fs::write(&p, body);
 }
 
@@ -126,6 +122,13 @@ fn receipt_fresh(repo: &Path, arm: &str) -> bool {
         return false;
     };
     let mut lines = text.lines();
+    // Magic + arm bind the file to this binary's writer and the arm that ran.
+    if lines.next().map(str::trim) != Some(RECEIPT_MAGIC) {
+        return false;
+    }
+    if lines.next().map(str::trim) != Some(arm) {
+        return false;
+    }
     let Some(Ok(then)) = lines.next().map(|l| l.trim().parse::<u64>()) else {
         return false;
     };
@@ -154,8 +157,8 @@ fn nudge_disabled() -> bool {
     )
 }
 
-// True only when there is real work to verify: uncommitted changes in the repo. Fails
-// open (no nudge) when git cannot answer, so a broken or absent git never nags.
+// True when there is real work to verify, or when git cannot answer in an *adopted*
+// repo (fail closed: do not silently skip the nudge because PATH has no git).
 fn has_uncommitted_changes(repo: &Path) -> bool {
     let out = Command::new("git")
         .args(["status", "--porcelain"])
@@ -163,7 +166,8 @@ fn has_uncommitted_changes(repo: &Path) -> bool {
         .output();
     match out {
         Ok(o) if o.status.success() => !o.stdout.iter().all(|b| b.is_ascii_whitespace()),
-        _ => false,
+        // Adopted + no git → assume dirty so Stop still pressures verification.
+        _ => adopted(repo),
     }
 }
 
@@ -181,9 +185,9 @@ pub fn should_block_stop(
     adopted && !stop_hook_active && !disabled && has_changes && !fresh
 }
 
-const STOP_REASON: &str = "This repo uses Crucible and you are finishing with uncommitted changes, but no `crucible run`/`harden` ran recently. A passing test suite is not proof the app works or that the tests assert anything. Run `crucible run` (does it boot and drive?) and `crucible harden` (do the tests bite?), or `crucible check`, and address what they surface before reporting done. If verification genuinely does not apply to this change, say why and stop.";
+const STOP_REASON: &str = "This repo uses Crucible and you are finishing with uncommitted changes, but no `crucible run`/`harden` ran successfully on this worktree recently. `crucible check` alone is not enough — it only audits gates, it does not prove tests bite or the app boots. Run `crucible harden` (do the tests constrain behavior?) and/or `crucible run` (does it boot and drive?), fix what they surface, then stop. If verification genuinely does not apply to this change, say why.";
 
-const SESSION_CONTEXT: &str = "Crucible is active in this repo. Before reporting a change as tested or done, verify it: `crucible run` (does the app boot and drive?), `crucible harden` (do the tests actually constrain behavior?), `crucible check` (are the gates honest?). A green suite is not proof.";
+const SESSION_CONTEXT: &str = "Crucible is active in this repo. Before reporting a change as tested or done: `crucible harden` (tests bite), `crucible run` (app boots/drives), plus `crucible check` (gates honest) and `crucible test-smells` when you touched tests. A green unit suite or check-only receipt is not proof.";
 
 fn stop(repo: &Path, stop_hook_active: bool) -> HookResult {
     let block = should_block_stop(

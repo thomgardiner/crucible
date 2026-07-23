@@ -25,11 +25,47 @@ fn resolve(repo_root: &Path, p: &str) -> PathBuf {
 
 /// Line is disabled for wiring purposes if `#` or `//` appears before the match.
 fn is_commented_line(line: &str, match_at: usize) -> bool {
-    let before = &line[..match_at];
+    let before = &line[..match_at.min(line.len())];
     before.contains('#') || before.contains("//")
 }
 
-/// True if the hook body has an active (non-commented) invocation of `crucible check`.
+/// Same-line runtime neutering: the invocation is present as text but never
+/// affects exit status. Shared by pre-push and gate-runner wiring.
+pub fn line_is_neutered(line: &str, match_at: usize) -> bool {
+    let lower = line.to_ascii_lowercase();
+    let at = match_at.min(lower.len());
+    let before = &lower[..at];
+    let after = &lower[at..];
+    // Disabled by false condition before the call.
+    if before.contains("if false") || before.contains("false &&") || before.contains("false;")
+    {
+        return true;
+    }
+    // Exit status swallowed after the call.
+    if after.contains("|| true")
+        || after.contains("||:")
+        || after.contains("|| :")
+        || after.contains("|| exit 0")
+        || after.contains("||exit 0")
+    {
+        return true;
+    }
+    false
+}
+
+/// True when the match at `match_index` in multi-line `text` sits on a neutered line.
+pub fn match_is_neutered(text: &str, match_index: usize) -> bool {
+    let line_start = text[..match_index].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_end = text[match_index..]
+        .find('\n')
+        .map(|i| match_index + i)
+        .unwrap_or(text.len());
+    let line = &text[line_start..line_end];
+    line_is_neutered(line, match_index - line_start)
+}
+
+/// True if the hook body has an active (non-commented, non-neutered) invocation of
+/// `crucible check`.
 pub fn hook_runs_crucible_check(text: &str) -> bool {
     for line in text.lines() {
         let lower = line.to_ascii_lowercase();
@@ -37,7 +73,10 @@ pub fn hook_runs_crucible_check(text: &str) -> bool {
         if let Some(idx) = lower.find("crucible") {
             let rest = &lower[idx + "crucible".len()..];
             let rest = rest.trim_start();
-            if rest.starts_with("check") && !is_commented_line(line, idx) {
+            if rest.starts_with("check")
+                && !is_commented_line(line, idx)
+                && !line_is_neutered(line, idx)
+            {
                 return true;
             }
         }
@@ -78,11 +117,55 @@ pub fn verify_pre_push(repo_root: &Path, adapter: &Adapter) -> Vec<String> {
     if !hook_runs_crucible_check(&text) {
         failures.push(format!(
             "adapter.prePush \"{rel}\" does not run `crucible check` on an active line — \
-             a hook that never invokes the honesty gate cannot enforce independence"
+             a hook that never invokes the honesty gate cannot enforce independence \
+             (commented out, `if false`, or `|| true` / `|| exit 0` counts as inert)"
         ));
     }
 
     failures
+}
+
+/// Soft adoption signal for `doctor`: is core.hooksPath aimed at the pre-push file's dir?
+pub fn hooks_path_status(repo_root: &Path, adapter: &Adapter) -> Option<String> {
+    let rel = adapter.pre_push.as_deref()?.trim();
+    if rel.is_empty() {
+        return None;
+    }
+    let path = resolve(repo_root, rel);
+    let Some(hooks_path) = git_stdout(repo_root, &["config", "--get", "core.hooksPath"]) else {
+        return Some(format!(
+            "git core.hooksPath is unset — run `git config core.hooksPath {}` so \"{rel}\" fires on push",
+            path.parent()
+                .map(|p| p
+                    .strip_prefix(repo_root)
+                    .unwrap_or(p)
+                    .display()
+                    .to_string())
+                .unwrap_or_else(|| ".githooks".into())
+        ));
+    };
+    let hooks_path = hooks_path.trim().replace('\\', "/");
+    let expected = path
+        .parent()
+        .map(|p| {
+            p.strip_prefix(repo_root)
+                .unwrap_or(p)
+                .display()
+                .to_string()
+                .replace('\\', "/")
+        })
+        .unwrap_or_default();
+    if hooks_path == expected
+        || hooks_path.ends_with(expected.trim_start_matches("./"))
+        || rel.starts_with(hooks_path.trim_start_matches("./"))
+    {
+        None
+    } else {
+        Some(format!(
+            "git core.hooksPath is \"{hooks_path}\" but adapter.prePush is \"{rel}\" — \
+             point hooksPath at the hook directory so independence fires on push"
+        ))
+    }
 }
 
 fn git_ok(repo_root: &Path) -> bool {

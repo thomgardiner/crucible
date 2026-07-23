@@ -27,6 +27,23 @@ pub const CARGO_MUTANTS_SURVIVED: &str = r"^(?:MISSED|TIMEOUT)\s+(.+?):(\d+)(?::
 pub const CARGO_MUTANTS_COMPLETION: &str =
     r"(?m)^\s*(?:Found\s+\d+\s+mutants?|\d+\s+mutants?\s+tested)";
 
+// Extract how many mutants the tool considered. "Found 0 mutants" is a completed run that
+// proved nothing — must not certify (same class as cover empty-scope).
+fn mutants_found_count(output: &str) -> Option<u64> {
+    let found = RegexBuilder::new(r"(?m)^\s*Found\s+(\d+)\s+mutants?")
+        .build()
+        .ok()?;
+    if let Some(c) = found.captures(output) {
+        return c.get(1)?.as_str().parse().ok();
+    }
+    let tested = RegexBuilder::new(r"(?m)^\s*(\d+)\s+mutants?\s+tested")
+        .build()
+        .ok()?;
+    tested
+        .captures(output)
+        .and_then(|c| c.get(1)?.as_str().parse().ok())
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Survivor {
     pub file: String,
@@ -204,6 +221,11 @@ pub fn run_harden(
         .survivor_pattern
         .as_deref()
         .unwrap_or(CARGO_MUTANTS_SURVIVED);
+    // Invalid pattern used to parse as "zero survivors" and could certify clean when the
+    // tool exited 0 — fail closed so a typo cannot hide every MISSED line.
+    if let Err(e) = RegexBuilder::new(pattern).multi_line(true).build() {
+        return blocked(&format!("survivorPattern is not a valid regex: {e}"));
+    }
     let survivors = parse_survivors(&out.output, pattern);
 
     // With no parseable survivors, trust the tool's own exit code: cargo-mutants exits
@@ -232,6 +254,15 @@ pub fn run_harden(
     if !ran {
         return blocked(
             "no evidence the mutation run completed — the command produced no mutation summary (e.g. \"N mutants tested\"); a zero-survivor result cannot be trusted. Check the mutation cmd and completionPattern.",
+        );
+    }
+
+    // "Found 0 mutants" means nothing was mutated — not that every mutant was killed.
+    // Certifying that would clear the Stop nudge without any test ever biting.
+    if matches!(mutants_found_count(&out.output), Some(0)) {
+        return blocked(
+            "0 mutants tested — that is not proof tests bite, it is proof nothing was mutated \
+             (empty diff scope, wrong package filter, or non-mutatable files only). Refuse to certify.",
         );
     }
 

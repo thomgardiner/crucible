@@ -339,6 +339,18 @@ fn proof_check_green_on_honest_gate_and_fails_on_every_weakening() {
         a6.contains("does not run") || a6.contains("crucible check"),
         "inert pre-push must fail: {a6}"
     );
+
+    // Attack 6b: text present, exit status swallowed — still not load-bearing.
+    fs::write(
+        root.join(".githooks/pre-push"),
+        "#!/bin/sh\ncrucible check || true\n",
+    )
+    .unwrap();
+    let a6b = combined(&crucible(&["check"], root));
+    assert!(
+        a6b.contains("does not run") || a6b.contains("inert") || a6b.contains("crucible check"),
+        "swallowed-exit pre-push must fail: {a6b}"
+    );
     fs::write(
         root.join(".githooks/pre-push"),
         "#!/bin/sh\ncrucible check || exit 1\n",

@@ -177,7 +177,9 @@ fn wired_checkers(repo_root: &Path, adapter: &Adapter) -> Wired {
     for caps in re.captures_iter(&text) {
         if let Some(g1) = caps.get(1) {
             let idx = caps.get(0).map(|m| m.start()).unwrap_or(g1.start());
-            if !is_commented(&text, idx) {
+            // Comment-out or same-line neutering (`if false`, `|| true`) means the
+            // checker is not actually load-bearing.
+            if !is_commented(&text, idx) && !crate::pre_push::match_is_neutered(&text, idx) {
                 found.insert(g1.as_str().to_string());
             }
         }
@@ -257,6 +259,12 @@ pub fn judge_config_paths(repo_root: &Path, adapter: &Adapter) -> Vec<String> {
         if resolve(repo_root, &rel).exists() {
             set.insert(rel);
         }
+    }
+    // Pre-push is the independence root — its bytes must re-approve when neutered.
+    if let Some(pp) = adapter.pre_push.as_deref()
+        && resolve(repo_root, pp).exists()
+    {
+        set.insert(pp.to_string());
     }
     set.extend(adapter.pinned_config.iter().cloned());
     set.into_iter().collect()

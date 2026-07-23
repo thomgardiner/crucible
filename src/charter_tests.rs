@@ -137,6 +137,26 @@ fn a_commented_out_invocation_does_not_count_as_wired() {
 }
 
 #[test]
+fn a_neutered_invocation_does_not_count_as_wired() {
+    // Same-line `|| true` / `if false` leaves the checker text in the runner but never
+    // makes it load-bearing — must fail the T1 wiring check.
+    let (dir, adapter, ledger, approvals) = make_repo();
+    fs::write(
+        dir.path().join("gate-runner.txt"),
+        "step A\nnode checks/check-foo.mjs || true\nstep B\n",
+    )
+    .unwrap();
+    let r = check_charter(dir.path(), &ledger, &adapter, &approvals);
+    assert!(
+        r.failures
+            .iter()
+            .any(|f| f.contains("declared tier T1 but its checker") && f.contains("is not wired")),
+        "{:?}",
+        r.failures
+    );
+}
+
+#[test]
 fn a_block_commented_invocation_does_not_count_as_wired() {
     // Codex round 3: `/* node checks/check-foo.mjs */` never executes, so it must not
     // satisfy the T1 wiring check.

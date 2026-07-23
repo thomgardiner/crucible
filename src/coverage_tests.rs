@@ -83,14 +83,28 @@ fn windows_lcov_paths_match_forward_slash_diff_paths() {
 
 #[test]
 fn a_changed_source_file_with_no_lcov_record_is_reported_not_skipped() {
-    // Codex round 3: a brand-new source file no test compiles has no record at all; the
-    // intersection silently skipped it, certifying exactly the least-tested code.
+    // A brand-new source file no test compiles has no SF record; the intersection must
+    // not silently skip it.
     let files = parse_lcov(LCOV);
     let r = cover(&files, &changed(&["src/pay.rs", "src/brand_new.rs"]), &[]);
     assert_eq!(r.unmatched_changed, vec!["src/brand_new.rs".to_string()]);
-    // A changed file whose extension coverage never reports (docs) stays out of scope.
-    let docs = cover(&files, &changed(&["README.md"]), &[]);
+    // Docs/config without source extensions stay out of scope.
+    let docs = cover(&files, &changed(&["README.md", "Cargo.toml"]), &[]);
     assert!(docs.unmatched_changed.is_empty());
+}
+
+#[test]
+fn source_files_unmatched_even_when_lcov_only_mentions_another_language() {
+    // LCOV that only lists `.js` must not hide a changed `.rs` file — the floor uses
+    // source-extension identity, not "extensions already present in this report".
+    let lcov = "SF:src/unrelated.js\nFN:1,f\nFNDA:1,f\nend_of_record\n";
+    let r = cover(
+        &parse_lcov(lcov),
+        &changed(&["src/pay.rs", "src/unrelated.js"]),
+        &[],
+    );
+    assert_eq!(r.unmatched_changed, vec!["src/pay.rs".to_string()]);
+    assert!(r.untested.is_empty());
 }
 
 #[test]
@@ -182,14 +196,15 @@ end_of_record
 
 #[test]
 fn notfoo_does_not_match_a_changed_foo() {
-    // Suffix matching must respect path-component boundaries (Codex P1 #9).
+    // Suffix matching must respect path-component boundaries.
     let lcov = "SF:src/notfoo.rs\nFN:1,g\nFNDA:0,g\nend_of_record\n";
     let r = cover(&parse_lcov(lcov), &changed(&["src/foo.rs"]), &[]);
     assert!(
         r.untested.is_empty(),
         "notfoo.rs must not match changed foo.rs"
     );
-    assert_eq!(r.verdict, "pass");
+    // foo.rs has no SF of its own — report it unmatched rather than absorbing notfoo.
+    assert_eq!(r.unmatched_changed, vec!["src/foo.rs".to_string()]);
 }
 
 #[test]
@@ -203,11 +218,12 @@ fn trailing_record_without_end_of_record_is_kept() {
 }
 
 #[test]
-fn cover_ignores_files_the_change_did_not_touch() {
+fn cover_does_not_score_functions_from_unchanged_files() {
+    // LCOV for pay.rs must not contribute untested hits when the change is elsewhere.
     let files = parse_lcov(LCOV);
     let r = cover(&files, &changed(&["src/other.rs"]), &["pay".to_string()]);
     assert!(r.untested.is_empty());
-    assert_eq!(r.verdict, "pass");
+    assert_eq!(r.unmatched_changed, vec!["src/other.rs".to_string()]);
 }
 
 // ---- mutation-run kill-tests (self-audit) ----------------------------------

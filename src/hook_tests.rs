@@ -39,7 +39,7 @@ fn receipt_roundtrips_and_reports_fresh() {
 #[test]
 fn a_flake_receipt_does_not_satisfy_the_verification_nudge() {
     // Determinism is not correctness: a flake success must never stand in for
-    // run/harden/check/cover (Codex round 3, typed receipts).
+    // run/harden (typed receipts).
     let dir = tempfile::tempdir().unwrap();
     write_receipt(dir.path(), "flake");
     assert!(
@@ -47,6 +47,29 @@ fn a_flake_receipt_does_not_satisfy_the_verification_nudge() {
         "the flake receipt itself is fine"
     );
     assert!(!verified_recently(dir.path()), "but it verifies no change");
+}
+
+#[test]
+fn check_or_cover_alone_does_not_satisfy_the_stop_nudge() {
+    // Agent lie: run only `crucible check` (or cover) and claim verified. Gate honesty
+    // and reachability are not "tests bite" / "app runs".
+    let dir = tempfile::tempdir().unwrap();
+    write_receipt(dir.path(), "check");
+    assert!(receipt_fresh(dir.path(), "check"));
+    assert!(
+        !verified_recently(dir.path()),
+        "check-only must not clear the Stop nudge"
+    );
+    write_receipt(dir.path(), "cover");
+    assert!(
+        !verified_recently(dir.path()),
+        "cover-only must not clear the Stop nudge"
+    );
+    write_receipt(dir.path(), "harden");
+    assert!(
+        verified_recently(dir.path()),
+        "harden clears the nudge"
+    );
 }
 
 #[test]
@@ -211,11 +234,32 @@ fn an_expired_receipt_is_not_fresh() {
     std::fs::create_dir_all(p.parent().unwrap()).unwrap();
     // Timestamp just past the window, current (empty, non-git) tree fingerprint.
     let then = now_secs() - RECEIPT_MAX_AGE_SECS - 1;
-    std::fs::write(&p, format!("{then}\n")).unwrap();
+    std::fs::write(
+        &p,
+        format!("CRUCIBLE-RECEIPT-v1\nrun\n{then}\n\n"),
+    )
+    .unwrap();
     assert!(
         !receipt_fresh(dir.path(), "run"),
         "expired must not be fresh"
     );
+}
+
+#[test]
+fn forged_receipt_without_magic_is_not_fresh() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = receipt_path(dir.path(), "run");
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    // Casual echo forgery: timestamp only, no magic/arm.
+    std::fs::write(&p, format!("{}\n\n", now_secs())).unwrap();
+    assert!(!receipt_fresh(dir.path(), "run"));
+    // Wrong arm line must not satisfy a different arm's receipt path.
+    std::fs::write(
+        &p,
+        format!("CRUCIBLE-RECEIPT-v1\nharden\n{}\n\n", now_secs()),
+    )
+    .unwrap();
+    assert!(!receipt_fresh(dir.path(), "run"));
 }
 
 #[test]
@@ -230,9 +274,18 @@ fn nudge_disabled_reads_the_env_var() {
 
 #[test]
 fn has_uncommitted_changes_reflects_the_worktree() {
-    // Non-git: fails open (false).
+    // Non-git and not adopted: no work to verify.
     let plain = tempfile::tempdir().unwrap();
     assert!(!has_uncommitted_changes(plain.path()));
+
+    // Adopted without a usable git answer: fail closed (assume dirty).
+    let adopted_plain = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(adopted_plain.path().join(".crucible")).unwrap();
+    // Not a git repo — status fails; adoption still pressures verification.
+    assert!(
+        has_uncommitted_changes(adopted_plain.path()),
+        "adopted + no git must not skip the nudge"
+    );
 
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
@@ -311,7 +364,15 @@ fn a_receipt_at_exactly_the_age_limit_is_still_fresh() {
         let n1 = now_secs();
         let p = receipt_path(dir.path(), "run");
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(&p, format!("{}\n", n1 - RECEIPT_MAX_AGE_SECS)).unwrap();
+        // Empty fingerprint matches non-git tree_fingerprint.
+        std::fs::write(
+            &p,
+            format!(
+                "CRUCIBLE-RECEIPT-v1\nrun\n{}\n\n",
+                n1 - RECEIPT_MAX_AGE_SECS
+            ),
+        )
+        .unwrap();
         let fresh = receipt_fresh(dir.path(), "run");
         if now_secs() == n1 {
             assert!(fresh, "age == limit must still be fresh");
@@ -319,6 +380,47 @@ fn a_receipt_at_exactly_the_age_limit_is_still_fresh() {
         }
     }
     panic!("clock never stable across five attempts");
+}
+
+#[test]
+fn edit_past_the_leading_sample_still_invalidates_the_receipt() {
+    // Full-file content digest: a change after the first 4KB must still reopen the
+    // verification question (not only size/mtime/leading bytes).
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(root)
+            .output()
+            .unwrap()
+    };
+    git(&["init", "-q"]);
+    let mut body = vec![b'a'; 5000];
+    body.push(b'\n');
+    std::fs::write(root.join("big.rs"), &body).unwrap();
+    git(&["add", "-A"]);
+    git(&[
+        "-c",
+        "user.email=t@t",
+        "-c",
+        "user.name=t",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-qm",
+        "init",
+    ]);
+
+    write_receipt(root, "run");
+    assert!(verified_recently(root));
+
+    body[4500] = b'Z'; // past the old 4KB sample window
+    std::fs::write(root.join("big.rs"), &body).unwrap();
+    assert!(
+        !verified_recently(root),
+        "edit past 4KB must invalidate the full-content fingerprint"
+    );
 }
 
 #[test]

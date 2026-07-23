@@ -37,6 +37,10 @@ Stop at the first applicable tier. Record command + exit code + one-line evidenc
 | The app works | `crucible run` | verdict RUNS (canonical recipe only certifies) |
 | Suite is stable (flaky history) | `crucible flake` | no flip-flops |
 
+**Stop-hook truth:** a fresh receipt for `harden` or `run` is what clears the agent
+Stop nudge. `check` / `cover` / `flake` alone do **not** — gate honesty and
+reachability are not "tests bite" or "app boots."
+
 **No `.crucible/`?** Run `crucible doctor`. If missing, say "harness not adopted" and
 fall back to the repo's own gates — still no tautology tests, still no "done" without
 real verification. Do not claim Crucible-grade tested.
@@ -49,9 +53,12 @@ second git identity for cryptographic multi-party approval.
 What Crucible enforces instead:
 
 1. `adapter.prePush` names a real hook that runs `crucible check` (load-bearing).
+   Commented-out, `|| true`, `|| exit 0`, and `if false` lines do **not** count.
 2. Approvals are committed **separately** from the config/checker they bless
    (`check` flags same-commit self-approval at HEAD).
 3. Non-blank `approvedBy` on every approval record.
+4. Point git at the hook dir: `git config core.hooksPath .githooks` (or install
+   into `.git/hooks`) so the independence layer actually fires on push.
 
 ## Spot-check (driver / human)
 

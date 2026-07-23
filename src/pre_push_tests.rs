@@ -15,6 +15,40 @@ fn hook_runs_crucible_check_accepts_active_invocations() {
 }
 
 #[test]
+fn inert_pre_push_wiring_does_not_count_as_running_check() {
+    // Text present but exit status never affected — independence is fake.
+    assert!(!hook_runs_crucible_check("crucible check || true\n"));
+    assert!(!hook_runs_crucible_check("crucible check ||:\n"));
+    assert!(!hook_runs_crucible_check("crucible check || exit 0\n"));
+    assert!(!hook_runs_crucible_check("if false; then crucible check; fi\n"));
+    assert!(!hook_runs_crucible_check("false && crucible check\n"));
+    // Still load-bearing when failure aborts the hook.
+    assert!(hook_runs_crucible_check("crucible check || exit 1\n"));
+}
+
+#[test]
+fn verify_pre_push_rejects_swallowed_exit_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join(".githooks")).unwrap();
+    fs::write(
+        root.join(".githooks/pre-push"),
+        "#!/bin/sh\ncrucible check || true\n",
+    )
+    .unwrap();
+    let adapter: Adapter = serde_json::from_value(json!({
+        "gateRunner": { "file": "g", "checkerPattern": "(x)" },
+        "prePush": ".githooks/pre-push"
+    }))
+    .unwrap();
+    let f = verify_pre_push(root, &adapter);
+    assert!(
+        f.iter().any(|m| m.contains("does not run") || m.contains("inert")),
+        "{f:?}"
+    );
+}
+
+#[test]
 fn verify_pre_push_requires_declared_hook() {
     let dir = tempfile::tempdir().unwrap();
     let adapter: Adapter = serde_json::from_value(json!({

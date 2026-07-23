@@ -126,6 +126,9 @@ pub fn doctor(repo_root: &Path) -> Vec<Check> {
             checks.push(fail(f));
         }
     }
+    if let Some(msg) = crate::pre_push::hooks_path_status(repo_root, &adapter) {
+        checks.push(warn(msg));
+    }
 
     // Every recipe-driven arm gets the same wiring check: a TODO command or a missing
     // tool is caught here, before the arm itself fails at verification time.
