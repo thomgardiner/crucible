@@ -2,9 +2,11 @@
 name = "crucible"
 version = "0.1.0"
 edition = "2024"
-description = "The brutal AI testing framework: actually tests your application, and aggressively un-rewards reward-hacking tests."
+description = "Honesty layer for your tests: check gates, run the real app, harden with mutation, catch hollow tests."
 license = "MIT"
 repository = "https://github.com/thomgardiner/crucible"
+homepage = "https://github.com/thomgardiner/crucible"
+readme = "README.md"
 publish = false
 
 [[bin]]
@@ -43,3 +45,15 @@ inherits = "release"
 
 [package.metadata.dist]
 dist = true
+# Shown after the shell/powershell installer finishes.
+install-success-msg = """
+crucible is on PATH. Next:
+
+  cd your-project
+  crucible init
+  crucible approve smoke --by \"$USER\"
+  crucible approve __config__ --by \"$USER\"
+  crucible doctor && crucible check
+
+Docs: https://github.com/thomgardiner/crucible#readme
+"""

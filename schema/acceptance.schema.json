@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manaforge.dev/crucible/acceptance.schema.json",
+  "$id": "https://github.com/thomgardiner/crucible/raw/main/schema/acceptance.schema.json",
   "title": "Crucible Acceptance Recipe",
   "description": "Declares how to deterministically build, boot, and drive a repo's real artifact, plus the trust audit of its mocked boundaries.",
   "type": "object",

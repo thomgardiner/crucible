@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manaforge.dev/crucible/mutation.schema.json",
+  "$id": "https://github.com/thomgardiner/crucible/raw/main/schema/mutation.schema.json",
   "title": "Crucible Mutation Recipe",
   "description": "How to run the repo's diff-scoped mutation tool and read its surviving mutants.",
   "type": "object",

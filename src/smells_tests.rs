@@ -315,7 +315,7 @@ fn ts_then_without_an_assertion_is_not_flagged() {
 #[test]
 fn rust_poll_loop_return_on_success_is_not_a_self_skip() {
     // The poll-until idiom: return inside a loop is the SUCCESS path; the fall-through
-    // panics. Dogfood FP on Battlemage engine tests — must stay clean.
+    // panics. Poll-loop return-on-success must stay clean.
     let src = "#[test]\nfn t() {\n    for _ in 0..50 {\n        if probe.is_finished() { return; }\n        sleep(ms(10));\n    }\n    panic!(\"never finished\");\n}\n";
     assert!(inspect_rust("a.rs", src).is_empty());
 }

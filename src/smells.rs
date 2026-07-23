@@ -152,7 +152,7 @@ fn inspect_rust_with(path: &str, raw: &str, helpers: Option<&Regex>) -> Vec<Stri
         // cfg_attr) are the honest form. Only guard-level returns count (brace depth ≤ 2:
         // the fn body or one `if` deep) — a return nested inside a loop is the poll-until
         // idiom, where returning IS the success path and the fall-through panics
-        // (dogfood FP: engine unit_tests.rs).
+        // unit_tests-style helpers that return Result without being a skip.
         // Every pre-assertion return is examined — an earlier loop-nested return must not
         // shadow a later guard-level one (Codex round 6).
         if !exempt
@@ -447,7 +447,7 @@ fn ts_tautologies(path: &str, src: &str) -> Vec<String> {
     let mut out = vec![];
     for c in TS_EXPECT_SELF.captures_iter(src) {
         // `expect(true).toBe(true)` belongs to the dedicated rule below — reporting it
-        // here too double-counts the same line (dogfood: Battlemage frontend).
+        // here too double-counts the same line.
         if c.get(1).map(|m| m.as_str()) == c.get(2).map(|m| m.as_str()) && &c[1] != "true" {
             let m = c.get(0).unwrap();
             out.push(format!(

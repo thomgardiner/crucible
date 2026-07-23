@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manaforge.dev/crucible/charter.schema.json",
+  "$id": "https://github.com/thomgardiner/crucible/raw/main/schema/charter.schema.json",
   "title": "Crucible Gate Ledger",
   "description": "The registry of every enforced rule in a repository, one row per gate.",
   "type": "object",

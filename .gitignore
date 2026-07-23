@@ -99,3 +99,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Self-harden debug log (scripts/mutate-diff may write this)
+**/last-mutants.log
+target/last-mutants.log

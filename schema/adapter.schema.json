@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manaforge.dev/crucible/adapter.schema.json",
+  "$id": "https://github.com/thomgardiner/crucible/raw/main/schema/adapter.schema.json",
   "title": "Crucible Project Adapter",
   "description": "Binds the portable Enforcement Charter to one repository's real gate machinery.",
   "type": "object",

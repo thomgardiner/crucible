@@ -55,9 +55,9 @@ thing against a real large codebase, below.
 
 ## Precision on a real large codebase (the honest number)
 
-`test-smells` was run over Battlemage's real suite (966 test files: 633 Rust + 333 TS).
-The first run flagged 157. Reading the flagged code (not trusting the count) surfaced
-five false-positive classes, each a real detector bug only a real codebase exposes:
+`test-smells` was run over a large multi-language production suite (966 test files:
+633 Rust + 333 TS). The first run flagged 157. Reading the flagged code (not trusting
+the count) surfaced five false-positive classes only a real codebase exposes:
 
 | Fix | Bug | Flags after |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ one assertion helper is near zero.
 
 The sneaky-class detectors (silent self-skip via early return, empty-catch swallowed
 assertions, fire-and-forget promise chains) were tuned the same way: on the same 1,266
-files they produce **zero false positives** after one refinement the dogfood forced —
+files they produce **zero false positives** after refinement on that suite —
 the Rust self-skip flag only fires at guard depth, because a `return;` nested in a loop
 is the poll-until idiom (return on success, panic on timeout), not a skip.
 
