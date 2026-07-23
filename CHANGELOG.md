@@ -3,6 +3,15 @@
 All notable changes to Crucible are documented here. Crucible follows semantic
 versioning.
 
+## Unreleased
+
+### Changed
+
+- Config load strips `_…` annotation keys (e.g. `_note`) then refuses any other
+  unknown field, so typos cannot silently weaken a gate.
+- CI runs the test suite on Ubuntu, macOS, and Windows (format/clippy/self-check
+  remain Linux).
+
 ## 0.1.0 — 2026-07-23
 
 First public release. A single Rust binary that sits on top of your existing test

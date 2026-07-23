@@ -1,23 +1,61 @@
 //! Typed views of the `.crucible/` JSON config. Field names are snake_case with a
 //! camelCase serde rename so the on-disk keys (gateRunner, highRiskUnits,
-//! oracleSha256, …) match the Node reference and the JSON Schemas unchanged. Unknown
-//! keys (e.g. a recipe's `_note`) are ignored on read, so hand-annotated config loads.
+//! oracleSha256, …) match the Node reference and the JSON Schemas unchanged.
+//!
+//! Keys that start with `_` are annotations (`_note`, …) and are stripped before
+//! typed deserialize. Any other unknown key is refused so typos cannot weaken a
+//! gate by being silently ignored.
 
 use anyhow::{Context, Result};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::path::Path;
 
 pub fn load_json<T: DeserializeOwned>(path: &Path) -> Result<T> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+    let mut value: Value =
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+    strip_annotation_keys(&mut value);
+    serde_json::from_value(value).with_context(|| {
+        format!(
+            "parsing {} into a typed config (unknown keys are refused; use _note for annotations)",
+            path.display()
+        )
+    })
+}
+
+/// Drop `_…` annotation keys recursively so operators can document config without
+/// weakening strict unknown-key rejection for everything else.
+fn strip_annotation_keys(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            let annotated: Vec<String> = map
+                .keys()
+                .filter(|key| key.starts_with('_'))
+                .cloned()
+                .collect();
+            for key in annotated {
+                map.remove(&key);
+            }
+            for child in map.values_mut() {
+                strip_annotation_keys(child);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                strip_annotation_keys(child);
+            }
+        }
+        _ => {}
+    }
 }
 
 // ---- gate arm -------------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Adapter {
     #[allow(dead_code)] // schema field, not yet consumed
     pub repo: Option<String>,
@@ -46,7 +84,7 @@ fn default_approvals() -> String {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GateRunner {
     #[allow(dead_code)] // schema field: human-facing description of the gate command
     pub command: Option<String>,
@@ -57,13 +95,14 @@ pub struct GateRunner {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Ledger {
     #[serde(default)]
     pub gates: Vec<Gate>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Gate {
     #[serde(default)]
     pub id: String,
@@ -80,24 +119,38 @@ pub struct Gate {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TrustedFile {
     pub path: String,
     pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Approval {
     pub gate: String,
     pub fingerprint: Option<String>,
     // Legacy alias for fingerprint, accepted so old approval logs keep verifying.
     pub sha256: Option<String>,
     pub approved_by: Option<String>,
+    /// ISO timestamp written by `crucible approve` (informational).
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub at: Option<String>,
+    /// Free-text note written by `crucible approve` (informational).
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub note: Option<String>,
+    /// Checker digest recorded next to the approval for forensics.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub checker_sha256: Option<String>,
 }
 
 // ---- reality arm ----------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Recipe {
     pub repo: Option<String>,
     pub build: Option<Step>,
@@ -108,7 +161,7 @@ pub struct Recipe {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Step {
     pub name: Option<String>,
     #[serde(default)]
@@ -119,14 +172,14 @@ pub struct Step {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Oracle {
     pub stdout_match: Option<String>,
     pub stdout_forbid: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrustCfg {
     #[serde(default)]
     pub test_roots: Vec<String>,
@@ -139,7 +192,7 @@ pub struct TrustCfg {
 // ---- mutation arm ---------------------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MutationRecipe {
     #[serde(default)]
     pub cmd: String,
@@ -156,7 +209,7 @@ pub struct MutationRecipe {
 
 // Optional per-repo config for the test-smells checker.
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestSmellsConfig {
     #[serde(default)]
     pub assertion_helpers: Vec<String>,
@@ -164,7 +217,7 @@ pub struct TestSmellsConfig {
 
 // The determinism recipe: a test command run N times to detect nondeterminism.
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FlakeRecipe {
     #[serde(default)]
     pub cmd: String,
@@ -180,7 +233,7 @@ pub struct FlakeRecipe {
 
 // The coverage floor recipe: a command that emits LCOV (to lcovPath, or stdout).
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CoverageRecipe {
     #[serde(default)]
     pub cmd: String,
@@ -194,7 +247,7 @@ pub struct CoverageRecipe {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Waiver {
     pub file: Option<String>,
     pub line: Option<u64>,
