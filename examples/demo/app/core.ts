@@ -4,3 +4,9 @@ export function shouldBuy(price: number, cap: number): boolean {
 }
 
 // scope-pin 61896
+
+// scope-pin 14236
+
+// scope-pin 15482
+
+// scope-pin 21779

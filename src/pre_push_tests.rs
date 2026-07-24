@@ -103,9 +103,65 @@ fn verify_pre_push_requires_existing_file_that_runs_check() {
         "#!/bin/sh\ncrucible check || exit 1\n",
     )
     .unwrap();
+    // Make git invoke the adapter hook path (independence is push-time).
+    assert!(
+        Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["config", "core.hooksPath", ".githooks"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
     assert!(
         verify_pre_push(root, &adapter).is_empty(),
-        "valid hook must pass"
+        "valid hook + hooksPath must pass: {:?}",
+        verify_pre_push(root, &adapter)
+    );
+}
+
+#[test]
+fn verify_pre_push_fails_when_hooks_path_diverges() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join(".githooks")).unwrap();
+    fs::write(
+        root.join(".githooks/pre-push"),
+        "#!/bin/sh\ncrucible check || exit 1\n",
+    )
+    .unwrap();
+    let adapter: Adapter = serde_json::from_value(json!({
+        "gateRunner": { "file": "g", "checkerPattern": "(x)" },
+        "prePush": ".githooks/pre-push"
+    }))
+    .unwrap();
+    assert!(
+        Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args(["config", "core.hooksPath", ".other-hooks"])
+            .current_dir(root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let f = verify_pre_push(root, &adapter);
+    assert!(
+        f.iter().any(|m| m.contains("hooksPath")),
+        "divergent hooksPath must fail check: {f:?}"
     );
 }
 

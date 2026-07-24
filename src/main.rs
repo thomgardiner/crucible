@@ -45,7 +45,9 @@ use std::process::ExitCode;
     name = "crucible",
     version,
     about = "Honesty layer for your tests: check gates, run the real app, harden with mutation, catch hollow tests.",
-    after_help = "Quick start:  crucible init && crucible doctor\nDocs:         https://github.com/thomgardiner/crucible#readme"
+    after_help = "Quick start:  crucible init && crucible approve smoke --by \"$USER\" \\\n\
+                  && crucible approve __config__ --by \"$USER\" && crucible doctor && crucible check\n\
+Docs:         https://github.com/thomgardiner/crucible#readme"
 )]
 struct Cli {
     /// Target repository (default: current directory).

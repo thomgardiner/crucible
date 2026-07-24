@@ -160,17 +160,30 @@ pub fn verify_pre_push(repo_root: &Path, adapter: &Adapter) -> Vec<String> {
         ));
     }
 
+    // Independence is push-time. If git will not invoke this hook (wrong or
+    // missing core.hooksPath when the adapter points at a custom dir), check
+    // must fail — not merely doctor-warn.
+    if let Some(msg) = hooks_path_status(repo_root, adapter) {
+        failures.push(msg);
+    }
+
     failures
 }
 
 /// Soft adoption signal for `doctor`: is core.hooksPath aimed at the pre-push file's dir?
 pub fn hooks_path_status(repo_root: &Path, adapter: &Adapter) -> Option<String> {
+    if !git_ok(repo_root) {
+        return None;
+    }
     let rel = adapter.pre_push.as_deref()?.trim();
     if rel.is_empty() {
         return None;
     }
     let path = resolve(repo_root, rel);
-    let Some(hooks_path) = git_stdout(repo_root, &["config", "--get", "core.hooksPath"]) else {
+    // Local only — a global hooksPath must not fail an unrelated checkout.
+    let Some(hooks_path) =
+        git_stdout(repo_root, &["config", "--local", "--get", "core.hooksPath"])
+    else {
         return Some(format!(
             "git core.hooksPath is unset — run `git config core.hooksPath {}` so \"{rel}\" fires on push",
             path.parent()
