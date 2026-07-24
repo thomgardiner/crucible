@@ -549,6 +549,8 @@ fn git_init(root: &Path) {
         ("user.email", "proof@crucible"),
         ("user.name", "proof"),
         ("commit.gpgsign", "false"),
+        // Independence is push-time; local hooksPath must reach adapter.prePush.
+        ("core.hooksPath", ".githooks"),
     ] {
         let _ = Command::new("git")
             .args(["config", k, v])
