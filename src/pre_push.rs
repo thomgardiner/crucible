@@ -181,8 +181,7 @@ pub fn hooks_path_status(repo_root: &Path, adapter: &Adapter) -> Option<String> 
     }
     let path = resolve(repo_root, rel);
     // Local only — a global hooksPath must not fail an unrelated checkout.
-    let Some(hooks_path) =
-        git_stdout(repo_root, &["config", "--local", "--get", "core.hooksPath"])
+    let Some(hooks_path) = git_stdout(repo_root, &["config", "--local", "--get", "core.hooksPath"])
     else {
         return Some(format!(
             "git core.hooksPath is unset — run `git config core.hooksPath {}` so \"{rel}\" fires on push",

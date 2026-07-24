@@ -43,5 +43,7 @@ jobs:
         shell: bash
         run: |
           cargo build --locked
+          # Independence is push-time; local hooksPath must reach adapter.prePush.
+          git config core.hooksPath .githooks
           ./target/debug/crucible check
           ./target/debug/crucible test-smells tests src
